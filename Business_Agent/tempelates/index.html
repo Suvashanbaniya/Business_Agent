@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business AI Assistant</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='b.css') }}">
+</head>
+
+<body>
+
+<div class="chat-wrapper">
+
+    <div class="header">
+
+        <div>
+            <h1>🤖 Business AI Assistant</h1>
+            <p>Powered by Llama 3 + RAG</p>
+        </div>
+
+        <div class="status">
+            ● Online
+        </div>
+
+    </div>
+
+    <div id="chat-box">
+
+        <div class="message ai">
+
+            <div class="avatar">
+                🤖
+            </div>
+
+            <div class="bubble">
+                Hello! Welcome to Business AI.
+                <br><br>
+                How can I help you today?
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="input-area">
+
+        <input
+            type="text"
+            id="message"
+            placeholder="Ask me anything..."
+            onkeypress="handleKey(event)">
+
+        <button onclick="sendMessage()">
+            Send
+        </button>
+
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='b.js') }}"></script>
+
+</body>
+</html>
