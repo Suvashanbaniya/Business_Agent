@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business AI Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='b.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🤖</span>
+                    <span class="logo-text">AI Assistant</span>
+                </div>
+                <span class="status-badge">Online</span>
+            </div>
+        </div>
+
+        <div id="chat-box" class="chat-box">
+            <div class="message bot-message">
+                <div class="message-content">Hello! I'm your AI assistant. How can I help you today?</div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input
+                type="text"
+                id="message"
+                placeholder="Ask me anything..."
+                onkeypress="handleKey(event)"
+                autocomplete="off"
+            >
+            <button class="send-btn" onclick="sendMessage()">
+                <span class="send-icon">→</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='b.js') }}"></script>
+</body>
+</html>

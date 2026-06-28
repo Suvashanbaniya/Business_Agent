@@ -15,12 +15,70 @@ messages = []
 temperature = 0.3
 
 def business_info():
+    
+    #customer information 
     cursor.execute("SELECT full_name , email , phone FROM customers ")
     rows = cursor.fetchall()
     text = ""
     for full_name , email , phone in rows :
        text += f"{full_name} ({email}): {phone}\n"
+       
+    #this is for products
+    cursor.execute("""
+                   SELECT product_name, price , stock_quantity, warranty_months FROM products """) 
+    
+    for name , price , stock , warranty in cursor.fetchall():
+        text +=(
+            f"Product : {name},"
+            f"price:${price},"
+            f"stock: {stock},"
+            f"warranty: {warranty} months \n"
+        )
+    
+      
     return text     
+
+
+
+#customer data function 
+def get_customer_data():
+    """ 
+    Reterive all customer information from the database.
+    This function is made only for the customer data 
+    and it only responsible for the customer table.
+    """
+    #for SQL query 
+    cursor.execute("""
+                   SELECT customer_id,full_name,email,
+                   phone, join_date FROM customers """)
+
+    rows = cursor.fetchall()
+    
+    #this code will store customer data in chunks 
+    customer_chunks = []
+    
+    #loop through every customer 
+    for customer_id, full_name, email, phone , join_date in rows:
+        
+        #create  one chunk per customer 
+        
+        chunk = (
+            f"Customer ID : {customer_id}\n"
+            f"Name : {full_name }\n"
+            f"Email : {email}\n"
+            f"Phone: {phone}\n"
+            f"Join Date : {join_date}"
+        )
+        
+        customer_chunks.append({
+            "id":customer_id,
+            "table":"customers",
+            "type":"customer",
+            "text":chunk
+        })
+        
+    return customer_chunks    
+
 
 
 def get_embedding(text):

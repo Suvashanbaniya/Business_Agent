@@ -7,7 +7,7 @@ CORS(app)
 
 @app.route("/")
 def home():
-    return "Business AI Assistant  is running successfully "
+    return render_template("index.html")
 
 @app.route("/chat",methods=["POST"])
 def chat():
@@ -19,7 +19,7 @@ def chat():
     
     print("\nCustomer:",user_message)
     
-    reply = ask_llm(user_message)
+   
     
     reply = ask_llm(user_message)
     
