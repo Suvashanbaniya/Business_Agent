@@ -74,11 +74,261 @@ def get_customer_data():
             "id":customer_id,
             "table":"customers",
             "type":"customer",
+            "date":join_date,
+            "phone":phone,
             "text":chunk
         })
         
     return customer_chunks    
 
+
+#this is the product  part 
+def get_product_data():
+    """ Retrieve all product information from the database.
+
+    This function is responsible only for the products table.
+    It provides product details such as:
+    - Product ID
+    - Product Name
+    - Category
+    - Price
+    - Stock Quantity
+    - Warranty"""
+    
+    #for squl query 
+    cursor.execute("""SELECT
+                   product_id,product_name,category,price,
+                   stock_quantity,warranty_months
+                   FROM products""")
+                   
+    rows = cursor.fetchall() 
+    product_chunks = []     
+    
+    
+    for product_id, product_name, category,price, stock_quantity , warranty_months in rows:
+            
+            #create  one chunk per product  
+            
+            chunk = (
+                f"Product_id : {product_id}\n"
+                f"Product_name: {product_name }\n"
+                f"Category: {category}\n"
+                f"Price: {price}\n"
+                f"Stock: {stock_quantity}\n"
+                f"Warranty:{warranty_months}"
+            )
+            
+            product_chunks.append({
+                "id":product_id,
+                "table":"products",
+                "type":"product",
+                "warranty":warranty_months,
+                "stock":stock_quantity,
+                "price":price,
+                "text":chunk
+            })
+            
+    return  product_chunks      
+
+
+
+
+#this is for get order 
+
+def get_order_data():
+    """ 
+    This function only provide the information about the orders 
+    and give the information ask related to products 
+    It provies information about 
+    order_id
+    customer_id
+    order_date
+    status
+    total_amount
+    """
+    
+    #for SQL query 
+    cursor.execute("""
+                   SELECT order_id,
+                   customer_id,
+                   order_date,
+                   status,
+                   total_amount
+                   FROM orders """)
+
+    rows = cursor.fetchall()
+    
+    #this code will store customer data in chunks 
+    order_chunks = []
+    
+    #loop through every customer 
+    for order_id, customer_id, order_date, status , total_amount in rows:
+        
+        #create  one chunk per customer 
+        
+        chunk = (
+            f"Order ID :{order_id}\n"
+            f"Customer ID : {customer_id}\n"
+            f"Order Date: {order_date}\n"
+            f"Status: {status}\n"
+            f"Total Amount: {total_amount}\n"
+            
+        )
+        
+        order_chunks.append({
+            "id":order_id,
+            "table":"orders",
+            "type":"order",
+            "date":order_date,
+            "status":status,
+            "amount":total_amount,
+            "text":chunk
+        })
+        
+    return order_chunks    
+
+
+
+#this is for order_items table 
+
+def get_order_items_data():
+    """ 
+    This function only provide the information about the orders_items
+    and give the information ask related to order_items
+    It provies information about 
+    item_id
+    order_id
+    product_id
+    quantity
+    """
+    
+    #for SQL query 
+    cursor.execute("""
+                   SELECT 
+                   item_id,
+                   order_id,
+                  product_id,
+                  quantity
+                   FROM order_items """)
+
+    rows = cursor.fetchall()
+    
+    #this code will store customer data in chunks 
+    order_items_chunks = []
+    
+    #loop through every customer 
+    for  item_id,order_id, product_id,quantity in rows:
+        
+        #create  one chunk per customer 
+        
+        chunk = (
+            f"Order ID :{order_id}\n"
+            f"Item ID : {item_id}\n"
+            f"Product Id: {product_id}\n"
+            f"Quantity: {quantity}"
+           
+            
+        )
+        
+        order_items_chunks.append({
+            "order_id":order_id,
+            "id":item_id,
+            "product_id":product_id,
+            "table":"order_items",
+            "type":"order_item",
+            "quantity":quantity,
+            "text":chunk
+        })
+        
+    return order_items_chunks    
+
+
+
+
+
+
+
+#this is the function of ticket-data 
+def get_ticket_data():
+    """ Retrieve all ticket information from the database.
+
+    This function is responsible only for the tickets table.
+    It provides product details such as:
+    - ticket ID
+    - customer id
+    - issue tittle
+    - issue description
+    - status
+    - created at """
+    
+    #for squl query 
+    cursor.execute("""SELECT
+                   ticket_id,
+                   customer_id,
+                   issue_title,
+                   issue_description,
+                   status,
+                   created_at
+                   FROM support_tickets""")
+                   
+    rows = cursor.fetchall() 
+    tickets_chunks = []     
+    
+    
+    for ticket_id, customer_id,issue_title,issue_description, status, created_at in rows:
+            
+            #create  one chunk per product  
+            
+            chunk = (
+                f"Ticket Id : {ticket_id}\n"
+                f"Customer ID: {customer_id }\n"
+                f"Issue Description: {issue_description}\n"
+                f"Issue Title: {issue_title}\n"
+                f"Status: {status}\n"
+                f"Created at:{created_at}"
+            )
+            
+            tickets_chunks.append({
+                "id":ticket_id,
+                "table":"support_tickets",
+                "type":"ticket",
+                "issue_description":issue_description,
+                "issue_title":issue_title,
+                "created_at":created_at,
+                "text":chunk
+            })
+            
+    return  tickets_chunks      
+
+
+
+
+def  build_knowledge_base():
+    """
+    This is the complete knowledge base of the system.
+    
+    This function collects data from every business table
+    and stores it in a structured dictionary
+    
+    returns :
+        dict :Complete Knowledge base
+    
+    """
+    
+    
+    knowledge_base ={
+        "customers":get_customer_data(),
+        "products":get_product_data(),
+        "orders":get_order_data(),
+        "order_items":get_order_items_data(),
+        "tickets":get_ticket_data()
+        
+    }
+    
+    return knowledge_base
+
+knowledge_base = build_knowledge_base()
+print(knowledge_base.keys())
 
 
 def get_embedding(text):
