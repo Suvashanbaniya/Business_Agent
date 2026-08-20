@@ -47,7 +47,7 @@ INSERT INTO customers(full_name,email,phone,join_date)
 VALUES
 ('John Smith','john@gmail.com','980000001','2025-01-15'),
 ('Sarah Johnson','sarah@gmail.com','980000002','2025-02-10'),
-('David Lee','david@gmail.com','980000003','2025-03-05');
+('David Lee','suvashanb@gmail.com','980000003','2025-03-05');
 
 INSERT INTO products(product_name,category,price,stock_quantity,warranty_months)
 VALUES
