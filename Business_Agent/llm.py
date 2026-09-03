@@ -1,10 +1,16 @@
-import requests , json 
+import requests, json
 from sklearn.metrics.pairwise import cosine_similarity
-import uuid 
+import uuid
 import sqlite3
+
+from customer_service import (
+    get_customer_by_email,
+    get_customer_by_orders,
+    get_customer_by_tickets
+)
+
 llm_url = "http://localhost:11434/api/generate"
 embeded_url = "http://localhost:11434/api/embeddings"
-
 
 conn = sqlite3.connect("customer.db",check_same_thread=False)
 cursor = conn.cursor ()
@@ -373,9 +379,33 @@ chunk_embeddings = []
 for chunk in chunks :
     emb = get_embedding(chunk)
     chunk_embeddings.append(emb)        
+ 
+ 
+ 
+def get_customer_context(email):
+    customer = get_customer_by_email(email)
     
-def ask_llm(user_input):
+    if not customer:
+        return None
+    
+    customer_id = customer[0]
+    
+    orders = get_customer_by_orders(customer_id)
+    tickets = get_customer_by_tickets(customer_id)
+    
+    context = {
+        "customer":customer,
+        "orders":orders,
+        "tickets":tickets
+    }
+    
+    return context 
 
+
+    
+def ask_llm(user_input,customer_email):
+    
+    customer_context = get_customer_context(customer_email)
     query_embedding = get_embedding(user_input)
 
     similarities = []
@@ -403,7 +433,23 @@ def ask_llm(user_input):
 
     for msg in messages:
         history_text += f"{msg['role']} : {msg['content']}\n"
-
+    
+    customer_data_text = ""
+    if customer_context :
+        customer_data_text += f"""
+        
+        Customer:
+        {customer_context["customer"]}
+        Orders:
+        {customer_context["orders"]}
+        
+        Support Tickets:
+        {customer_context["tickets"]}
+        
+        
+        """
+    
+    
     prompt = f"""
 You are a Business Assistant AI.
 
@@ -414,6 +460,9 @@ If the answer is not available in the business data, say:
 
 Business Data:
 {context}
+
+Customer-Specific Data:
+{customer_data_text}
 
 Conversation History:
 {history_text}
