@@ -308,7 +308,25 @@ def get_ticket_data():
 
 
 
+def get_embedding(text):
+    try:
+        response = requests.post(embeded_url, json={
+            'model': 'nomic-embed-text',
+            'prompt': text
+        })
 
+        data = response.json()
+
+        if "embedding" not in data:
+            return [0.0] * 768
+
+        return data.get("embedding", [0.0] * 768)
+
+    except Exception as e:
+        print("Embedding error:", e)
+        return [0.0] * 768
+    
+    
 def  build_knowledge_base():
     """
     This is the complete knowledge base of the system.
@@ -333,28 +351,36 @@ def  build_knowledge_base():
     
     return knowledge_base
 
+
+
+# Building  embeddings  
+def build_embeddings(knowledge_base):
+    for category , items  in knowledge_base.items():
+        for item in items:
+            item["embedding"] = get_embedding(item["text"])
+    return knowledge_base
+
 knowledge_base = build_knowledge_base()
+knowledge_base = build_embeddings(knowledge_base)
+
+print("\nEmbedding Test")
+print("----------------")
+
+for category, items in knowledge_base.items():
+
+    print(f"\n{category}: {len(items)} items")
+
+    if len(items) > 0:
+
+        print("First item:")
+        print(items[0]["text"])
+
+        print("Embedding length:")
+        print(len(items[0]["embedding"]))
+
 print(knowledge_base.keys())
 
 
-def get_embedding(text):
-    try:
-        response = requests.post(embeded_url, json={
-            'model': 'nomic-embed-text',
-            'prompt': text
-        })
-
-        data = response.json()
-
-        if "embedding" not in data:
-            return [0.0] * 768
-
-        return data.get("embedding", [0.0] * 768)
-
-    except Exception as e:
-        print("Embedding error:", e)
-        return [0.0] * 768
-    
 # This part prepare the chunks 
 
 chunk_size = 10 
@@ -403,9 +429,9 @@ def get_customer_context(email):
 
 
     
-def ask_llm(user_input,customer_email):
+def ask_llm(user_input,customer_email=None):
     
-    customer_context = get_customer_context(customer_email)
+    customer_context = None
     query_embedding = get_embedding(user_input)
 
     similarities = []

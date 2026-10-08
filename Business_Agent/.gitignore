@@ -1,4 +1,194 @@
-.env
-__pycache__/
-*.pyc
-.venv/
+-- ===========================
+
+-- 1. Create Tables
+
+-- ===========================
+
+CREATE TABLE Customer (
+
+    CustomerID VARCHAR(10) PRIMARY KEY,
+
+    CustomerName VARCHAR(100) NOT NULL
+
+);
+ 
+CREATE TABLE Product (
+
+    ProductID VARCHAR(10) PRIMARY KEY,
+
+    ProductName VARCHAR(100) NOT NULL
+
+);
+ 
+CREATE TABLE CustomerProduct (
+
+    CustomerID VARCHAR(10),
+
+    ProductID VARCHAR(10),
+
+    Price NUMERIC(10,2),
+
+    PRIMARY KEY (CustomerID, ProductID),
+
+    FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+
+    FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+
+);
+ 
+-- ===========================
+
+-- 2. Insert Data
+
+-- ===========================
+
+INSERT INTO Customer VALUES ('C1', 'Manjeet Islam');
+
+INSERT INTO Customer VALUES ('C4', 'Tolu Amusia');
+
+INSERT INTO Customer VALUES ('C2', 'Sid James');
+
+INSERT INTO Customer VALUES ('C6', 'Ambereen Reeza');
+ 
+INSERT INTO Product VALUES ('P1', 'Hair dryer');
+
+INSERT INTO Product VALUES ('P2', 'Shampoo');
+
+INSERT INTO Product VALUES ('P3', 'Specialist comb set');
+
+INSERT INTO Product VALUES ('P4', 'Hair net');
+
+INSERT INTO Product VALUES ('P5', 'Clippers');
+ 
+INSERT INTO CustomerProduct VALUES ('C1', 'P1', 35);
+
+INSERT INTO CustomerProduct VALUES ('C1', 'P2', 7);
+
+INSERT INTO CustomerProduct VALUES ('C1', 'P3', 8);
+
+INSERT INTO CustomerProduct VALUES ('C4', 'P4', NULL);
+
+INSERT INTO CustomerProduct VALUES ('C2', 'P3', 7);
+
+INSERT INTO CustomerProduct VALUES ('C2', 'P1', 35);
+
+INSERT INTO CustomerProduct VALUES ('C6', 'P5', NULL);
+ 
+-- ===========================
+
+-- 3. Queries
+
+-- ===========================
+ 
+-- c. Names of customers in ascending order
+
+SELECT CustomerName
+
+FROM Customer
+
+ORDER BY CustomerName ASC;
+ 
+-- d. Names of products in descending order of price
+
+SELECT DISTINCT p.ProductName, cp.Price
+
+FROM Product p
+
+JOIN CustomerProduct cp ON p.ProductID = cp.ProductID
+
+WHERE cp.Price IS NOT NULL
+
+ORDER BY cp.Price DESC;
+ 
+-- e. Total count of products available in the sales record
+
+SELECT COUNT(DISTINCT ProductID) AS TotalProducts
+
+FROM CustomerProduct;
+ 
+-- f. Names of customers who bought 'Hair dryer'
+
+SELECT DISTINCT c.CustomerName
+
+FROM Customer c
+
+JOIN CustomerProduct cp ON c.CustomerID = cp.CustomerID
+
+JOIN Product p ON cp.ProductID = p.ProductID
+
+WHERE p.ProductName = 'Hair dryer';
+ 
+-- g. Number of products purchased by each customer
+
+SELECT c.CustomerName,
+
+       COUNT(cp.ProductID) AS NumberOfProducts
+
+FROM Customer c
+
+LEFT JOIN CustomerProduct cp
+
+ON c.CustomerID = cp.CustomerID
+
+GROUP BY c.CustomerID, c.CustomerName;
+ 
+-- h. Total price paid by each customer
+
+SELECT c.CustomerName,
+
+       COALESCE(SUM(cp.Price), 0) AS TotalPrice
+
+FROM Customer c
+
+LEFT JOIN CustomerProduct cp
+
+ON c.CustomerID = cp.CustomerID
+
+GROUP BY c.CustomerID, c.CustomerName;
+ 
+-- i. Customer who purchased the highest amount
+
+SELECT c.CustomerName,
+
+       SUM(cp.Price) AS TotalAmount
+
+FROM Customer c
+
+JOIN CustomerProduct cp
+
+ON c.CustomerID = cp.CustomerID
+
+GROUP BY c.CustomerID, c.CustomerName
+
+ORDER BY TotalAmount DESC
+
+LIMIT 1;
+ 
+-- j. Update the price of Clippers to $1
+
+UPDATE CustomerProduct
+
+SET Price = 1
+
+WHERE ProductID = (
+
+    SELECT ProductID
+
+    FROM Product
+
+    WHERE ProductName = 'Clippers'
+
+);
+ 
+-- Verify the update
+
+SELECT p.ProductName, cp.Price
+
+FROM Product p
+
+JOIN CustomerProduct cp
+
+ON p.ProductID = cp.ProductID
+
+WHERE p.ProductName = 'Clippers';
+ 
