@@ -428,60 +428,132 @@ def get_customer_context(email):
     return context 
 
 
+def route_question(question):
     
-def ask_llm(user_input,customer_email=None):
+    question = question.lower()
     
-    customer_context = None
+    
+    if any(word in question for word in [
+        "product","price", "cost","warranty","stock","available","smartphone"
+    ]):
+        return "products"
+    
+    elif any(word in question for word in[
+        "my email","my phone","my name",
+        "customer details","join date"
+    ]):
+        
+        return "customers"
+    
+    elif any(word in question for word in [
+        "quantity","item in my order", "how many items"
+    ]):
+        return "order_items"
+    
+    elif any (word in question for word in [
+        "order","delivery", "delivered","shipping", "tracking"
+    ]):
+       return "orders"
+    
+    else :
+        return "all"
+
+# -------- Retrieve Relevant Chunks --------
+
+def retrieve_relevant_chunks(user_input, category="all", top_k=3):
+    # Convert the user's question into an embedding.
     query_embedding = get_embedding(user_input)
 
     similarities = []
 
-    for i in range(len(chunk_embeddings)):
-        score = cosine_similarity(
-            [query_embedding],
-            [chunk_embeddings[i]]
-        )[0][0]
+    # Search through the knowledge base.
+    for current_category, items in knowledge_base.items():
 
-        similarities.append((score, chunks[i]))
+        # Skip categories that the router did not select.
+        if category != "all" and current_category != category:
+            continue
 
-    similarities.sort(reverse=True)
+        # Compare the question with each record.
+        for item in items:
+            embedding = item.get("embedding")
 
-    top_chunks = similarities[:3]
+            if not embedding:
+                continue
 
-    context = "\n".join([item[1] for item in top_chunks])
+            score = cosine_similarity(
+                [query_embedding],
+                [embedding]
+            )[0][0]
 
+            similarities.append((score, item))
+
+    # Sort records from most similar to least similar.
+    similarities.sort(
+        key=lambda result: result[0],
+        reverse=True
+    )
+
+    # Select the top matching records.
+    top_results = similarities[:top_k]
+
+    # Combine the selected records into context.
+    context = "\n\n".join(
+        item["text"] for score, item in top_results
+    )
+
+    return context
+   
+def ask_llm(user_input, customer_email=None):
+
+    # Get customer-specific information if an email is provided
+    customer_context = None
+
+    if customer_email:
+        customer_context = get_customer_context(customer_email)
+
+    # Retrieve relevant information from the new knowledge base
+    category = route_question(user_input)
+    
+    context = retrieve_relevant_chunks(
+        user_input,
+        category=category
+    )
+    
+    print("Router selected :" , category )
+
+    # Save the user's message
     messages.append({
         "role": "user",
         "content": user_input
     })
 
+    # Build conversation history
     history_text = ""
 
     for msg in messages:
-        history_text += f"{msg['role']} : {msg['content']}\n"
-    
+        history_text += f"{msg['role']}: {msg['content']}\n"
+
+    # Build customer-specific information
     customer_data_text = ""
-    if customer_context :
-        customer_data_text += f"""
-        
-        Customer:
-        {customer_context["customer"]}
-        Orders:
-        {customer_context["orders"]}
-        
-        Support Tickets:
-        {customer_context["tickets"]}
-        
-        
-        """
-    
-    
+
+    if customer_context:
+        customer_data_text = f"""
+Customer:
+{customer_context["customer"]}
+
+Orders:
+{customer_context["orders"]}
+
+Support Tickets:
+{customer_context["tickets"]}
+"""
+
+    # Prepare the prompt for Llama 3
     prompt = f"""
 You are a Business Assistant AI.
 
-Answer only from the business data below.
-
-If the answer is not available in the business data, say:
+Answer using the available business data.
+If the answer is not available, say:
 "I don't know."
 
 Business Data:
@@ -499,8 +571,8 @@ User Question:
 Answer naturally.
 """
 
+    # Send the prompt to Ollama
     try:
-
         response = requests.post(
             llm_url,
             json={
@@ -508,8 +580,11 @@ Answer naturally.
                 "prompt": prompt,
                 "stream": False,
                 "temperature": temperature
-            }
+            },
+            timeout=120
         )
+
+        response.raise_for_status()
 
         data = response.json()
 
@@ -518,6 +593,7 @@ Answer naturally.
             "No response from model"
         )
 
+        # Save the AI response
         messages.append({
             "role": "assistant",
             "content": answer
@@ -526,5 +602,4 @@ Answer naturally.
         return answer
 
     except Exception as e:
-
         return f"LLM Error: {str(e)}"
