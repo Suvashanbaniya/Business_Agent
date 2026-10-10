@@ -183,6 +183,7 @@ def get_order_data():
         
         order_chunks.append({
             "id":order_id,
+            "customer_id":customer_id,
             "table":"orders",
             "type":"order",
             "date":order_date,
@@ -458,25 +459,69 @@ def route_question(question):
     else :
         return "all"
 
+
+#-- creating filetering the metadata 
+
+def filter_metadata(items,metadata_filters=None):
+    if not metadata_filters:
+        return items 
+    
+    filtered_items = []
+    
+    
+    for item in items :
+        matches = True 
+        
+        for key , excepted_value in metadata_filters.items():
+            
+            actual_value = item.get(key)
+            
+            if(
+                actual_value is None 
+                or str(actual_value).lower()
+                != str(excepted_value).lower()
+            ):
+                matches = False
+                break 
+            
+        if matches:
+            filtered_items.append(item)
+    return filtered_items
+
+
 # -------- Retrieve Relevant Chunks --------
 
-def retrieve_relevant_chunks(user_input, category="all", top_k=3):
-    # Convert the user's question into an embedding.
+# -------- Retrieve Relevant Chunks --------
+
+def retrieve_relevant_chunks(
+    user_input,
+    category="all",
+    top_k=3,
+    metadata_filters=None
+):
+    # Convert the question into an embedding.
     query_embedding = get_embedding(user_input)
 
     similarities = []
 
-    # Search through the knowledge base.
+    # Go through each knowledge-base category.
     for current_category, items in knowledge_base.items():
 
-        # Skip categories that the router did not select.
+        # Skip categories not selected by the router.
         if category != "all" and current_category != category:
             continue
 
-        # Compare the question with each record.
-        for item in items:
+        # Apply metadata filters before similarity search.
+        filtered_items = filter_metadata(
+            items,
+            metadata_filters
+        )
+
+        # Compare the question with filtered records.
+        for item in filtered_items:
             embedding = item.get("embedding")
 
+            # Skip records without embeddings.
             if not embedding:
                 continue
 
@@ -487,16 +532,16 @@ def retrieve_relevant_chunks(user_input, category="all", top_k=3):
 
             similarities.append((score, item))
 
-    # Sort records from most similar to least similar.
+    # Rank records by similarity, highest first.
     similarities.sort(
         key=lambda result: result[0],
         reverse=True
     )
 
-    # Select the top matching records.
+    # Select the best matches.
     top_results = similarities[:top_k]
 
-    # Combine the selected records into context.
+    # Combine the matching records into context.
     context = "\n\n".join(
         item["text"] for score, item in top_results
     )
@@ -514,18 +559,23 @@ def ask_llm(user_input, customer_email=None):
     # Retrieve relevant information from the new knowledge base
     category = route_question(user_input)
     
+    print("Router selected:",category)
+    
     context = retrieve_relevant_chunks(
         user_input,
-        category=category
+        category=category,
+        top_k=3
     )
     
-    print("Router selected :" , category )
+    print("Retrived context:\n",context)
 
     # Save the user's message
     messages.append({
         "role": "user",
         "content": user_input
     })
+    
+    recent_messages = messages[-10:]
 
     # Build conversation history
     history_text = ""
@@ -546,8 +596,18 @@ Orders:
 
 Support Tickets:
 {customer_context["tickets"]}
-"""
 
+"""
+    if not  context.strip() and not customer_data_text.strip():
+        answer = "I dont know based on the available business data "
+        
+        
+        messages.append({
+            "role":"assistant",
+            "content":answer
+        })
+        
+        return answer 
     # Prepare the prompt for Llama 3
     prompt = f"""
 You are a Business Assistant AI.
@@ -555,6 +615,9 @@ You are a Business Assistant AI.
 Answer using the available business data.
 If the answer is not available, say:
 "I don't know."
+
+Do not promise future updates, notifications, refunds, or other actions
+unless the system has actually performed or scheduled that action.
 
 Business Data:
 {context}
@@ -603,3 +666,32 @@ Answer naturally.
 
     except Exception as e:
         return f"LLM Error: {str(e)}"
+    
+    
+
+# -------- Test Metadata Filtering --------
+
+# Get all order records from the knowledge base.
+orders = knowledge_base["orders"]
+
+# Keep only orders with Delivered status.
+delivered_orders = filter_metadata(
+    orders,
+    {"status": "Delivered"}
+)
+
+print("Delivered orders:")
+for order in delivered_orders:
+    print(order["text"])
+
+print("-------------------------")
+
+# Keep only orders belonging to customer ID 1.
+customer_orders = filter_metadata(
+    orders,
+    {"customer_id": 1}
+)
+
+print("Orders for customer ID 1:")
+for order in customer_orders:
+    print(order["text"])
