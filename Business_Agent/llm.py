@@ -489,7 +489,6 @@ def filter_metadata(items,metadata_filters=None):
     return filtered_items
 
 
-# -------- Retrieve Relevant Chunks --------
 
 # -------- Retrieve Relevant Chunks --------
 
@@ -548,6 +547,70 @@ def retrieve_relevant_chunks(
 
     return context
    
+   
+ #-- rewritting the follow up question 
+ 
+ 
+def rewrite_follow_up_question(user_input,conversation_history):
+    
+    if not  conversation_history:
+        return user_input
+    
+    
+    recent_messages = conversation_history[-10:]
+    history_text = ""
+    for message in recent_messages:
+        history_text += (
+            f"{message['role']}: {message['content']}\n"
+        )
+    prompt = f"""
+     
+    You rewrite follow-up questions for a business assistant.
+
+Use the conversation history to understand the latest question.
+
+Rules:
+- If the question depends on earlier messages, rewrite it as a
+  standalone question with the necessary product or topic named.
+- If it is already clear on its own, keep its meaning unchanged.
+- Do not answer the question.
+- Do not invent product names, customer details, or other facts.
+- Return only the rewritten question.
+
+Conversation history:
+{history_text}
+
+Latest question:
+{user_input}
+
+Standalone question:
+"""
+
+    try:
+        response = requests.post(
+            llm_url,
+            json={
+                "model":"llama3",
+                "prompt":prompt,
+                "stream":False,
+                "temperature":0.1
+            },
+            timeout=60
+        )
+        
+        response.raise_for_status()
+        
+        rewritten_question = response.json().get("response","").strip()
+        
+        if not rewritten_question:
+            return user_input
+        
+        return rewritten_question
+    except Exception as e :
+        print("Question rewritting error :",e)
+        
+        return user_input
+     
 def ask_llm(user_input, customer_email=None):
 
     # Get customer-specific information if an email is provided
@@ -556,24 +619,35 @@ def ask_llm(user_input, customer_email=None):
     if customer_email:
         customer_context = get_customer_context(customer_email)
 
-    # Retrieve relevant information from the new knowledge base
-    category = route_question(user_input)
+    #== conversation Memory  + reterived
     
+    
+    standalone_question = rewrite_follow_up_question(
+        user_input,
+        messages
+    )
+    
+    print("Orginal question:",user_input)
+    print("Standalone question:",standalone_question)
+    
+    category = route_question(standalone_question)
     print("Router selected:",category)
     
+    
     context = retrieve_relevant_chunks(
-        user_input,
+        standalone_question,
         category=category,
         top_k=3
     )
     
     print("Retrived context:\n",context)
-
-    # Save the user's message
+    
     messages.append({
-        "role": "user",
-        "content": user_input
+        "role":"user",
+        "content":user_input,
+        
     })
+    
     
     recent_messages = messages[-10:]
 
