@@ -748,6 +748,25 @@ Answer naturally.
 # Get all order records from the knowledge base.
 orders = knowledge_base["orders"]
 
+for order in orders:
+    print(
+        "Order ID :",order.get("id"),
+        "|Customer ID :", order.get("customer_id")
+    )
+    
+print("---------------")
+
+#  test filtering for customer ID
+customer_orders = filter_metadata(
+    orders,
+    {"customer_id":1}
+)
+
+print("Orders for customer ID 1 :")
+
+for order in customer_orders:
+    print(order["text"])
+
 # Keep only orders with Delivered status.
 delivered_orders = filter_metadata(
     orders,
