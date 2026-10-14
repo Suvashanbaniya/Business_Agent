@@ -1,6 +1,6 @@
 from flask import Flask , request ,jsonify ,render_template
 from flask_cors import CORS
-from llm import ask_llm
+from ai.llm import ask_llm
 
 app = Flask(__name__)
 CORS(app)

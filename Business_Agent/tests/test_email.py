@@ -1,4 +1,4 @@
-from emailservice import send_email
+from Business_Agent.services.emailservice import send_email
 
 
 # Ask for the customer's email address

@@ -2,7 +2,7 @@
 # -------- Test Customer Order Filtering --------
 
 # Import the knowledge base and filtering function from llm.py.
-from llm import knowledge_base, filter_metadata
+from Business_Agent.ai.llm import knowledge_base, filter_metadata
 
 
 # Get all order records from the knowledge base.

@@ -1,4 +1,4 @@
-from intent_detector import detect_intent
+from Business_Agent.ai.intent_detector import detect_intent
 
 while True:
     question = input("Enter a customer message ( or exit):")

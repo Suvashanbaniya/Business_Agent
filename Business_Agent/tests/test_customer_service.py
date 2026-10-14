@@ -1,4 +1,4 @@
-from customer_service import (
+from Business_Agent.services.customer_service import (
     get_customer_by_email,
     get_customer_by_orders,
     get_customer_by_tickets

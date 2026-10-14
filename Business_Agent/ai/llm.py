@@ -3,17 +3,28 @@ from sklearn.metrics.pairwise import cosine_similarity
 import uuid
 import sqlite3
 
-from customer_service import (
+
+from services.customer_service import (
     get_customer_by_email,
     get_customer_by_orders,
     get_customer_by_tickets
 )
 
+
 llm_url = "http://localhost:11434/api/generate"
 embeded_url = "http://localhost:11434/api/embeddings"
 
-conn = sqlite3.connect("customer.db",check_same_thread=False)
-cursor = conn.cursor ()
+from pathlib import Path
+
+
+# Find the project root (the parent of the ai folder)
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Use the existing database inside the database folder
+DATABASE_PATH = BASE_DIR / "database" / "customer.db"
+
+conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+cursor = conn.cursor()
 
 messages = []
 

@@ -3,10 +3,12 @@ import os
 
 from dotenv import load_dotenv
 
-from emailreader import read_emails
-from intent_detector import detect_intent
-from llm import ask_llm
-from emailservice import send_email
+
+from services.emailreader import read_emails
+from ai.intent_detector import detect_intent
+from ai.llm import ask_llm
+from services.emailservice import send_email
+
 
 
 load_dotenv()

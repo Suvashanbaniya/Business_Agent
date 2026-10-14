@@ -1,5 +1,5 @@
-from llm import ask_llm
-from emailservice import send_email
+from Business_Agent.ai.llm import ask_llm
+from Business_Agent.services.emailservice import send_email
 
 
 print("LLM + Email Test Started")
