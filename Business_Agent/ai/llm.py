@@ -645,6 +645,12 @@ def ask_llm(user_input, customer_email=None):
     print("Router selected:",category)
     
     
+    metadata_filters = None
+    if customer_context:
+        customer_id = customer_context["customer"][0]
+        
+        if category in ["orders","tickets"]:
+            metadata_filters = {"customer_id":customer_id}
     context = retrieve_relevant_chunks(
         standalone_question,
         category=category,
