@@ -626,6 +626,32 @@ def ask_llm(user_input, customer_email=None):
 
     # Get customer-specific information if an email is provided
     customer_context = None
+    
+    greetings = {
+        "hi",
+        "hello",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening"
+    }
+    
+    normalized_input = user_input.strip().lower()
+    if normalized_input in greetings:
+        answer = (
+             "Hello! I'm your business support assistant. "
+            "How can I help you today?"
+        )
+        
+        messages.append({
+            "role":"user",
+            "content":user_input
+        })
+        messages.append({
+            "role":"assistant",
+            "content":answer
+        })
+        return answer
 
     if customer_email:
         customer_context = get_customer_context(customer_email)
@@ -654,7 +680,8 @@ def ask_llm(user_input, customer_email=None):
     context = retrieve_relevant_chunks(
         standalone_question,
         category=category,
-        top_k=3
+        top_k=3,
+        metadata_filters=metadata_filters
     )
     
     print("Retrived context:\n",context)
@@ -671,7 +698,7 @@ def ask_llm(user_input, customer_email=None):
     # Build conversation history
     history_text = ""
 
-    for msg in messages:
+    for msg in recent_messages:
         history_text += f"{msg['role']}: {msg['content']}\n"
 
     # Build customer-specific information
@@ -689,16 +716,30 @@ Support Tickets:
 {customer_context["tickets"]}
 
 """
-    if not  context.strip() and not customer_data_text.strip():
-        answer = "I dont know based on the available business data "
-        
-        
+    business_categories = {"customers", "products", "orders", "tickets"}
+
+    if (
+        not context.strip()
+        and not customer_data_text.strip()
+        and category in business_categories
+    ):
+        answer = (
+            "I couldn't find relevant information in the available "
+            "business records. Could you provide more details?"
+        )
+
         messages.append({
-            "role":"assistant",
-            "content":answer
+            "role": "user",
+            "content": user_input
         })
-        
-        return answer 
+
+        messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        return answer
+
     # Prepare the prompt for Llama 3
     prompt = f"""
 You are a Business Assistant AI.
