@@ -26,6 +26,13 @@ DATABASE_PATH = BASE_DIR / "database" / "customer.db"
 conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
+#-------- Temporary database check
+cursor.execute("SELECT COUNT(*) FROM order_items")
+print("Order item count:", cursor.fetchone()[0])
+
+cursor.execute("PRAGMA table_info(orders)")
+print("Orders columns:", cursor.fetchall())
+
 messages = []
 
 
@@ -220,47 +227,45 @@ def get_order_items_data():
     quantity
     """
     
-    #for SQL query 
+    #-------- Get order items and their associated customer IDs
     cursor.execute("""
-                   SELECT 
-                   item_id,
-                   order_id,
-                  product_id,
-                  quantity
-                   FROM order_items """)
+        SELECT
+            oi.item_id,
+            oi.order_id,
+            o.customer_id,
+            oi.product_id,
+            oi.quantity
+        FROM order_items AS oi
+        JOIN orders AS o
+            ON oi.order_id = o.order_id
+    """)
 
     rows = cursor.fetchall()
-    
-    #this code will store customer data in chunks 
+
     order_items_chunks = []
-    
-    #loop through every customer 
-    for  item_id,order_id, product_id,quantity in rows:
-        
-        #create  one chunk per customer 
-        
+
+    #-------- Create one chunk for each order item
+    for item_id, order_id, customer_id, product_id, quantity in rows:
         chunk = (
-            f"Order ID :{order_id}\n"
-            f"Item ID : {item_id}\n"
-            f"Product Id: {product_id}\n"
+            f"Order ID: {order_id}\n"
+            f"Customer ID: {customer_id}\n"
+            f"Item ID: {item_id}\n"
+            f"Product ID: {product_id}\n"
             f"Quantity: {quantity}"
-           
-            
         )
-        
+
         order_items_chunks.append({
-            "order_id":order_id,
-            "id":item_id,
-            "product_id":product_id,
-            "table":"order_items",
-            "type":"order_item",
-            "quantity":quantity,
-            "text":chunk
+            "id": item_id,
+            "order_id": order_id,
+            "customer_id": customer_id,
+            "product_id": product_id,
+            "table": "order_items",
+            "type": "order_item",
+            "quantity": quantity,
+            "text": chunk
         })
-        
-    return order_items_chunks    
 
-
+    return order_items_chunks
 
 
 
@@ -308,6 +313,7 @@ def get_ticket_data():
             
             tickets_chunks.append({
                 "id":ticket_id,
+                "customer_id":customer_id,
                 "table":"support_tickets",
                 "type":"ticket",
                 "issue_description":issue_description,
@@ -316,8 +322,7 @@ def get_ticket_data():
                 "text":chunk
             })
             
-    return  tickets_chunks      
-
+    return  tickets_chunks
 
 
 def get_embedding(text):
@@ -374,6 +379,9 @@ def build_embeddings(knowledge_base):
 
 knowledge_base = build_knowledge_base()
 knowledge_base = build_embeddings(knowledge_base)
+
+
+
 
 print("\nEmbedding Test")
 print("----------------")
@@ -501,6 +509,33 @@ def filter_metadata(items,metadata_filters=None):
 
 
 
+
+
+
+tickets = knowledge_base["tickets"]
+
+customer_tickets = filter_metadata(
+    tickets,
+    {"customer_id": 1}
+)
+
+print("\nTickets for customer ID 1:")
+
+for ticket in customer_tickets:
+    print(ticket["text"])
+
+assert len(customer_tickets) > 0, (
+    "No tickets found for customer ID 1"
+)
+
+assert all(
+    ticket["customer_id"] == 1
+    for ticket in customer_tickets
+)
+
+print("Ticket metadata is working!")
+
+
 # -------- Retrieve Relevant Chunks --------
 
 def retrieve_relevant_chunks(
@@ -626,6 +661,32 @@ def ask_llm(user_input, customer_email=None):
 
     # Get customer-specific information if an email is provided
     customer_context = None
+    
+    greetings = {
+        "hi",
+        "hello",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening"
+    }
+    
+    normalized_input = user_input.strip().lower()
+    if normalized_input in greetings:
+        answer = (
+             "Hello! I'm your business support assistant. "
+            "How can I help you today?"
+        )
+        
+        messages.append({
+            "role":"user",
+            "content":user_input
+        })
+        messages.append({
+            "role":"assistant",
+            "content":answer
+        })
+        return answer
 
     if customer_email:
         customer_context = get_customer_context(customer_email)
@@ -645,10 +706,17 @@ def ask_llm(user_input, customer_email=None):
     print("Router selected:",category)
     
     
+    metadata_filters = None
+    if customer_context:
+        customer_id = customer_context["customer"][0]
+        
+        if category in ["orders","tickets"]:
+            metadata_filters = {"customer_id":customer_id}
     context = retrieve_relevant_chunks(
         standalone_question,
         category=category,
-        top_k=3
+        top_k=3,
+        metadata_filters=metadata_filters
     )
     
     print("Retrived context:\n",context)
@@ -665,7 +733,7 @@ def ask_llm(user_input, customer_email=None):
     # Build conversation history
     history_text = ""
 
-    for msg in messages:
+    for msg in recent_messages:
         history_text += f"{msg['role']}: {msg['content']}\n"
 
     # Build customer-specific information
@@ -683,16 +751,30 @@ Support Tickets:
 {customer_context["tickets"]}
 
 """
-    if not  context.strip() and not customer_data_text.strip():
-        answer = "I dont know based on the available business data "
-        
-        
+    business_categories = {"customers", "products", "orders", "tickets"}
+
+    if (
+        not context.strip()
+        and not customer_data_text.strip()
+        and category in business_categories
+    ):
+        answer = (
+            "I couldn't find relevant information in the available "
+            "business records. Could you provide more details?"
+        )
+
         messages.append({
-            "role":"assistant",
-            "content":answer
+            "role": "user",
+            "content": user_input
         })
-        
-        return answer 
+
+        messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        return answer
+
     # Prepare the prompt for Llama 3
     prompt = f"""
 You are a Business Assistant AI.
