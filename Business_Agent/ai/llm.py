@@ -3,8 +3,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import uuid
 import sqlite3
 
-
-from services.customer_service import (
+from Business_Agent.services.customer_service import (
     get_customer_by_email,
     get_customer_by_orders,
     get_customer_by_tickets
@@ -536,8 +535,37 @@ assert all(
 print("Ticket metadata is working!")
 
 
-# -------- Retrieve Relevant Chunks --------
 
+
+
+#-------- Test order-item filtering
+order_items = knowledge_base["order_items"]
+
+customer_items = filter_metadata(
+    order_items,
+    {"customer_id": 1}
+)
+
+print("\nOrder items for customer ID 1:")
+
+for item in customer_items:
+    print(item["text"])
+
+assert len(customer_items) == 2, (
+    "Expected 2 order items for customer ID 1"
+)
+
+assert all(
+    item["customer_id"] == 1
+    for item in customer_items
+)
+
+print("Order-item metadata filtering is working!")
+
+
+
+
+# -------- Retrieve Relevant Chunks --------
 def retrieve_relevant_chunks(
     user_input,
     category="all",
@@ -549,6 +577,13 @@ def retrieve_relevant_chunks(
 
     similarities = []
 
+    #-------- Categories containing private customer records
+    private_categories = {
+    "customers",
+    "orders",
+    "order_items",
+    "tickets"
+}
     # Go through each knowledge-base category.
     for current_category, items in knowledge_base.items():
 
@@ -556,11 +591,28 @@ def retrieve_relevant_chunks(
         if category != "all" and current_category != category:
             continue
 
-        # Apply metadata filters before similarity search.
-        filtered_items = filter_metadata(
-            items,
-            metadata_filters
-        )
+        #-------- Never retrieve private records without a customer filter
+        if current_category in private_categories and not metadata_filters:
+            continue
+        
+                #-------- Apply the correct filter to private records
+        if current_category == "customers":
+            if metadata_filters:
+                filtered_items = filter_metadata(
+                    items,
+                    {"id": metadata_filters["customer_id"]}
+                )
+            else:
+                filtered_items = []
+
+        elif current_category in private_categories:
+            filtered_items = filter_metadata(
+                items,
+                metadata_filters
+            )
+
+        else:
+            filtered_items = items
 
         # Compare the question with filtered records.
         for item in filtered_items:
@@ -592,7 +644,6 @@ def retrieve_relevant_chunks(
     )
 
     return context
-   
    
  #-- rewritting the follow up question 
  
@@ -704,22 +755,32 @@ def ask_llm(user_input, customer_email=None):
     
     category = route_question(standalone_question)
     print("Router selected:",category)
-    
-    
-    metadata_filters = None
-    if customer_context:
-        customer_id = customer_context["customer"][0]
         
-        if category in ["orders","tickets"]:
-            metadata_filters = {"customer_id":customer_id}
+    #-------- Categories containing private customer records
+    private_categories = {"orders", "order_items", "tickets"}
+
+    #-------- Refuse private-data questions without verified identity
+    if category in private_categories and not customer_context:
+        return (
+            "Please sign in to your account before I can help "
+            "with your orders or support tickets."
+        )
+
+    metadata_filters = None
+
+    if customer_context and category in private_categories:
+        customer_id = customer_context["customer"][0]
+        metadata_filters = {"customer_id": customer_id}
+
     context = retrieve_relevant_chunks(
         standalone_question,
         category=category,
         top_k=3,
         metadata_filters=metadata_filters
     )
+
+    print("Retrieved context:\n", context)
     
-    print("Retrived context:\n",context)
     
     messages.append({
         "role":"user",
@@ -751,8 +812,13 @@ Support Tickets:
 {customer_context["tickets"]}
 
 """
-    business_categories = {"customers", "products", "orders", "tickets"}
-
+    business_categories = {
+    "customers",
+    "products",
+    "orders",
+    "order_items",
+    "tickets"
+}
     if (
         not context.strip()
         and not customer_data_text.strip()
@@ -767,10 +833,9 @@ Support Tickets:
             "role": "user",
             "content": user_input
         })
-
         messages.append({
-            "role": "assistant",
-            "content": answer
+    "role": "assistant",
+    "content": answer
         })
 
         return answer
