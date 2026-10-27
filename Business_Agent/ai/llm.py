@@ -3,7 +3,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import uuid
 import sqlite3
 
-from Business_Agent.services.customer_service import (
+from services.customer_service import (
+    # Keep the existing imported function names here
+
     get_customer_by_email,
     get_customer_by_orders,
     get_customer_by_tickets
