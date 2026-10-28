@@ -59,7 +59,7 @@ def login_required(view_function):
 @app.route("/")
 @login_required
 def home():
-    return render_template("index.html")
+    return render_template("admin.html")
 
 
 @app.route("/chat", methods=["POST"])

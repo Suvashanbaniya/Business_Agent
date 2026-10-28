@@ -1,0 +1,229 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business_Agent | Customer Support</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='customer.css') }}">
+</head>
+
+<body>
+    <!-- Top navigation -->
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-logo">☻</div>
+            <div>
+                <h2>Business_Agent</h2>
+                <p>AI Customer Support Assistant</p>
+            </div>
+        </div>
+
+        <button class="top-profile" id="profile-menu">
+            <span class="profile-icon">♟</span>
+            <span>
+                <strong id="header-name">John Smith</strong>
+                <small>Customer</small>
+            </span>
+            <span>⌄</span>
+        </button>
+    </header>
+
+    <div class="dashboard">
+        <!-- Left sidebar -->
+        <aside class="sidebar">
+            <nav class="side-nav">
+                <button class="nav-item active" data-view="chat">
+                    <span>☏</span> Chat Support
+                </button>
+                <button class="nav-item" data-view="orders">
+                    <span>◇</span> My Orders
+                </button>
+                <button class="nav-item" data-view="tickets">
+                    <span>♧</span> My Tickets
+                </button>
+                <button class="nav-item" data-view="profile">
+                    <span>♙</span> Profile
+                </button>
+            </nav>
+
+            <button class="logout-button" id="logout-button">
+                ↪ <span>Logout</span>
+            </button>
+
+            <div class="help-card">
+                <div class="help-icon">🤖</div>
+                <strong>Need help?</strong>
+                <p>Our AI assistant is here 24/7 to help you.</p>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <section class="chat-card">
+                <div class="chat-header">
+                    <div class="assistant-avatar">🤖</div>
+                    <div class="assistant-details">
+                        <h3>Business_Agent Assistant</h3>
+                        <p>Your AI support assistant</p>
+                    </div>
+                    <div class="online-status">
+                        <span></span> Online
+                    </div>
+                </div>
+
+                <div id="chat-messages" class="chat-messages"
+                     aria-live="polite">
+                    <div class="message-row bot-row">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <div class="message-bubble bot-bubble">
+                                <p>Hello John! 👋</p>
+                                <p>I'm your Business_Agent AI assistant.
+                                   I can help you with:</p>
+                                <ul>
+                                    <li>Order status and tracking</li>
+                                    <li>Product information</li>
+                                    <li>Returns and refunds</li>
+                                    <li>Technical support</li>
+                                    <li>And more...</li>
+                                </ul>
+                                <p>How can I help you today?</p>
+                            </div>
+                            <small class="message-time">AI Assistant</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick questions -->
+                <section class="quick-questions">
+                    <h4><span>ϟ</span> Quick Questions</h4>
+                    <div class="quick-grid">
+                        <button data-question="Track my order">
+                            Track my order
+                        </button>
+                        <button data-question="Show me my support tickets">
+                            View my tickets
+                        </button>
+                        <button data-question="How can I return a product?">
+                            Return a product
+                        </button>
+                        <button data-question="Tell me about your products">
+                            Product information
+                        </button>
+                        <button data-question="How can I contact support?">
+                            Contact support
+                        </button>
+                        <button data-question="Show me my order history">
+                            My order history
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Message composer -->
+                <form id="chat-form" class="chat-composer">
+                    <textarea id="chat-input"
+                              placeholder="Type your message..."
+                              rows="1"
+                              maxlength="2000"
+                              aria-label="Type your message"
+                              required></textarea>
+
+                    <button type="submit" id="send-button"
+                            aria-label="Send message">➤</button>
+                </form>
+
+                <div id="chat-error" class="chat-error" hidden></div>
+            </section>
+        </main>
+
+        <!-- Right sidebar -->
+        <aside class="right-sidebar">
+            <section class="info-card account-card">
+                <h3><span class="section-icon">♟</span> Your Account</h3>
+                <div class="account-detail">♙ <span id="account-name">John Smith</span></div>
+                <div class="account-detail">✉ <span id="account-email">john@gmail.com</span></div>
+                <div class="account-detail">☎ <span id="account-phone">980000001</span></div>
+            </section>
+
+            <section class="info-card">
+                <div class="section-heading">
+                    <h3><span class="section-icon">▦</span> Recent Orders</h3>
+                    <button class="view-all" data-view="orders">View all</button>
+                </div>
+                <div id="recent-orders">
+                    <div class="order-item">
+                        <div class="item-top">
+                            <strong>#1001</strong>
+                            <span class="status delivered">Delivered</span>
+                        </div>
+                        <div class="item-bottom">
+                            <span>Jan 10, 2026</span><strong>$949.98</strong>
+                        </div>
+                    </div>
+                    <div class="order-item">
+                        <div class="item-top">
+                            <strong>#1002</strong>
+                            <span class="status processing">Processing</span>
+                        </div>
+                        <div class="item-bottom">
+                            <span>Feb 5, 2026</span><strong>$599.99</strong>
+                        </div>
+                    </div>
+                    <div class="order-item">
+                        <div class="item-top">
+                            <strong>#1003</strong>
+                            <span class="status pending">Pending</span>
+                        </div>
+                        <div class="item-bottom">
+                            <span>Mar 12, 2026</span><strong>$299.99</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="info-card">
+                <div class="section-heading">
+                    <h3><span class="section-icon">♧</span> Support Tickets</h3>
+                    <button class="view-all" data-view="tickets">View all</button>
+                </div>
+                <div id="recent-tickets">
+                    <div class="ticket-item">
+                        <strong>#1</strong>
+                        <div class="ticket-description">
+                            <span>Refund Request</span>
+                            <small>Aug 20, 2026</small>
+                        </div>
+                        <span class="status delivered">Open</span>
+                    </div>
+                    <div class="ticket-item">
+                        <strong>#2</strong>
+                        <div class="ticket-description">
+                            <span>Product Question</span>
+                            <small>Aug 18, 2026</small>
+                        </div>
+                        <span class="status processing">In Progress</span>
+                    </div>
+                    <div class="ticket-item">
+                        <strong>#3</strong>
+                        <div class="ticket-description">
+                            <span>Technical Issue</span>
+                            <small>Aug 15, 2026</small>
+                        </div>
+                        <span class="status delivered">Resolved</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="privacy-card">
+                <strong>🛡️ &nbsp; Your privacy matters</strong>
+                <p>We only show you your own orders and tickets. Your data is safe and secure.</p>
+            </section>
+        </aside>
+    </div>
+
+    <script src="{{ url_for('static', filename='customer.js') }}"></script>
+</body>
+</html>
