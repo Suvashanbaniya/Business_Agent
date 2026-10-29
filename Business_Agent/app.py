@@ -18,6 +18,7 @@ from werkzeug.security import check_password_hash
 
 from ai.llm import ask_llm
 from services.create_ticket import create_ticket
+from ai.customer_chat import product_chat_response
 
 app = Flask(__name__)
 CORS(app)
@@ -27,14 +28,26 @@ AUTH_DB_PATH = (
     / "database"
     / "auth.db"
 )
+# -------- Public product chatbot API
+@app.route("/product-chat", methods=["POST"])
+def product_chat():
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "")
 
+    # -------- Validate the incoming message
+    if not isinstance(message, str) or not message.strip():
+        return jsonify({"error": "Please enter a product question."}), 400
+
+    # -------- Generate a product-only response
+    answer = product_chat_response(message)
+
+    return jsonify({"response": answer})
 # Set this environment variable before starting Flask.
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")
-
-if not app.secret_key:
-    raise RuntimeError(
-        "Set the FLASK_SECRET_KEY environment variable before running Flask."
-    )
+# -------- Flask secret key
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "Suvashan_BusinessAgent_DevKey_2026"
+)
 
 # Basic protection for the session cookie.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -56,12 +69,21 @@ def login_required(view_function):
         return view_function(*args, **kwargs)
 
     return wrapper
+# -------- Public customer homepage
 @app.route("/")
-@login_required
 def home():
+    return render_template("customer.html")
+
+# -------- Admin dashboard
+@app.route("/admin")
+@login_required
+def admin_dashboard():
+
+    # Only admins can access the admin dashboard.
+    if session.get("role") != "admin":
+        return redirect(url_for("home"))
+
     return render_template("admin.html")
-
-
 @app.route("/chat", methods=["POST"])
 @login_required
 def chat():
@@ -263,6 +285,10 @@ def login():
         session["customer_id"] = user["customer_id"]
 
     # For now, both roles go to the existing homepage.
+    # -------- Send each role to its correct interface
+    if user["role"] == "admin":
+        return redirect(url_for("admin_dashboard"))
+
     return redirect(url_for("home"))
 
 

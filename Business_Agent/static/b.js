@@ -147,7 +147,9 @@ async function sendMessage() {
 
         /* Send message to Flask */
 
-        const response = await fetch("/chat", {
+      /* Send message to the product-only chatbot */
+
+        const response = await fetch("/product-chat", {
 
             method: "POST",
 
