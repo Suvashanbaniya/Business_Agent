@@ -1,0 +1,614 @@
+
+/* ---------- Global reset ---------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ---------- Page background ---------- */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    color: #25243a;
+
+    background:
+        radial-gradient(
+            circle at 50% 35%,
+            #ffffff 0%,
+            #f8f7ff 45%,
+            #f0effb 100%
+        );
+}
+
+/* ---------- Main centered area ---------- */
+.page {
+    flex: 1;
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 36px 20px 28px;
+}
+
+/* ---------- Login card ---------- */
+.login-card {
+    width: 100%;
+    max-width: 420px;
+
+    margin: 0 auto;
+    padding: 34px 34px 30px;
+
+    background: #ffffff;
+    border: 1px solid #e9e7f2;
+    border-radius: 18px;
+
+    box-shadow:
+        0 16px 45px rgba(45, 35, 90, 0.07),
+        0 3px 10px rgba(45, 35, 90, 0.03);
+}
+
+/* ---------- Brand logo ---------- */
+.brand-logo {
+    width: 46px;
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 auto 18px;
+
+    background: #6554d9;
+    color: #ffffff;
+
+    border-radius: 13px;
+    box-shadow: 0 5px 12px rgba(101, 84, 217, 0.2);
+}
+
+.logo-symbol {
+    font-size: 29px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* ---------- Workspace identity ---------- */
+.workspace-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    margin-bottom: 12px;
+
+    color: #77748d;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+
+    background: #39b982;
+    border-radius: 50%;
+}
+
+/* ---------- Heading ---------- */
+h1 {
+    margin-bottom: 9px;
+
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    color: #25243a;
+}
+
+.subtitle {
+    margin-bottom: 25px;
+
+    text-align: center;
+    color: #858197;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* ---------- Authentication tabs ---------- */
+.auth-tabs {
+    display: flex;
+    gap: 5px;
+
+    padding: 5px;
+    margin-bottom: 20px;
+
+    background: #f4f3fa;
+    border-radius: 9px;
+}
+
+.tab {
+    flex: 1;
+    min-height: 38px;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+    color: #77748d;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.tab span {
+    margin-right: 5px;
+}
+
+.tab.active {
+    background: #ffffff;
+    color: #5b4bce;
+
+    box-shadow: 0 2px 6px rgba(35, 25, 80, 0.08);
+}
+
+/* ---------- Google and Microsoft buttons ---------- */
+.sso-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin-bottom: 20px;
+}
+
+.sso-button {
+    width: 100%;
+    min-height: 43px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    padding: 10px 12px;
+
+    background: #ffffff;
+    border: 1px solid #e4e2ed;
+    border-radius: 8px;
+
+    color: #38364b;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.sso-button:hover {
+    background: #faf9ff;
+    border-color: #c9c3ef;
+}
+
+/* Google icon */
+.google-icon {
+    font-size: 17px;
+    font-weight: 700;
+    color: #4285f4;
+}
+
+/* Microsoft four-square icon */
+.microsoft-icon {
+    display: grid;
+    grid-template-columns: repeat(2, 7px);
+    grid-template-rows: repeat(2, 7px);
+    gap: 2px;
+}
+
+.microsoft-icon i {
+    display: block;
+    background: #f35325;
+}
+
+.microsoft-icon i:nth-child(2) {
+    background: #81bc06;
+}
+
+.microsoft-icon i:nth-child(3) {
+    background: #05a6f0;
+}
+
+.microsoft-icon i:nth-child(4) {
+    background: #ffba08;
+}
+
+/* ---------- Divider ---------- */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    margin: 20px 0;
+
+    color: #a09caf;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #eeedf4;
+}
+
+/* ---------- Form fields ---------- */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+
+    color: #454258;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Input container */
+.input-wrapper {
+    width: 100%;
+    min-height: 44px;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 0 12px;
+
+    background: #ffffff;
+    border: 1px solid #e2e0eb;
+    border-radius: 8px;
+
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-wrapper:focus-within {
+    border-color: #7665e8;
+    box-shadow: 0 0 0 3px rgba(118, 101, 232, 0.1);
+}
+
+.field-icon {
+    flex-shrink: 0;
+    color: #9995ae;
+    font-size: 15px;
+}
+
+.input-wrapper input {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+
+    border: none;
+    outline: none;
+    background: transparent;
+
+    color: #333147;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.input-wrapper input::placeholder {
+    color: #b0adbd;
+}
+
+/* ---------- Password heading ---------- */
+.password-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.password-heading label {
+    margin-bottom: 8px;
+}
+
+.password-heading a {
+    margin-bottom: 8px;
+
+    color: #6655d9;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.password-heading a:hover {
+    text-decoration: underline;
+}
+
+/* ---------- Remember me and passkey ---------- */
+.form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin: 2px 0 22px;
+}
+
+.remember {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    color: #77748a;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.remember input {
+    width: 14px;
+    height: 14px;
+    accent-color: #6554d9;
+    cursor: pointer;
+}
+
+.passkey-button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    padding: 0;
+
+    border: none;
+    background: transparent;
+    color: #6655d9;
+
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+/* ---------- Sign-in button ---------- */
+.sign-in-button {
+    width: 100%;
+    min-height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #6554d9;
+    color: #ffffff;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.sign-in-button:hover {
+    background: #5140c3;
+}
+
+.sign-in-button:active {
+    transform: scale(0.99);
+}
+
+.sign-in-button span {
+    font-size: 18px;
+}
+
+/* ---------- Signup text ---------- */
+.signup-text {
+    margin-top: 23px;
+
+    text-align: center;
+    color: #858197;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.signup-text a {
+    color: #6554d9;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.signup-text a:hover {
+    text-decoration: underline;
+}
+
+/* ---------- Security badges ---------- */
+.security-badges {
+    width: 100%;
+    max-width: 760px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px 22px;
+
+    margin-top: 24px;
+}
+
+.security-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    color: #89869e;
+    font-size: 10px;
+}
+
+.security-badge span {
+    color: #7770ad;
+    font-size: 13px;
+}
+
+
+
+/* Logout button */
+.logout-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.logout-btn:hover {
+    background-color: #b02a37;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+
+    padding: 18px 30px;
+
+    border-top: 1px solid rgba(220, 217, 238, 0.7);
+    color: #858197;
+
+    font-size: 10px;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.footer-dot {
+    width: 7px;
+    height: 7px;
+
+    background: #39b982;
+    border-radius: 50%;
+}
+
+.copyright {
+    margin-left: 12px;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+.footer-links a {
+    color: #858197;
+    text-decoration: none;
+}
+
+.footer-links a:hover {
+    color: #6554d9;
+}
+
+/* ---------- Tablet and mobile screens ---------- */
+@media (max-width: 600px) {
+    .page {
+        justify-content: flex-start;
+        padding: 28px 16px;
+    }
+
+    .login-card {
+        max-width: 420px;
+        padding: 28px 22px;
+        border-radius: 14px;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+
+    .subtitle {
+        font-size: 12px;
+    }
+
+    .security-badges {
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .security-badge {
+        font-size: 9px;
+    }
+
+    .footer {
+        justify-content: center;
+        padding: 18px 16px;
+        text-align: center;
+    }
+
+    .footer-brand {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .copyright {
+        margin-left: 4px;
+    }
+
+    .footer-links {
+        justify-content: center;
+        gap: 14px;
+    }
+}
+
+/* ---------- Very small mobile screens ---------- */
+@media (max-width: 360px) {
+    .login-card {
+        padding: 24px 16px;
+    }
+
+    .form-options {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .workspace-label {
+        font-size: 9px;
+        letter-spacing: 1px;
+    }
+
+    .footer-links {
+        gap: 10px;
+        font-size: 9px;
+    }
+}

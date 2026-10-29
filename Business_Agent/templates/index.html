@@ -16,7 +16,12 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='b.css') }}"
     >
-
+    <!-- Logout button in the chatbot header -->
+<form action="{{ url_for('logout') }}" method="POST">
+    <button type="submit" class="logout-btn">
+        Logout
+    </button>
+</form>
 </head>
 
 
@@ -117,7 +122,12 @@
                     <span>Saved</span>
 
                 </div>
-
+                 <!-- Logout button in the chatbot header -->
+<form action="{{ url_for('logout') }}" method="POST">
+    <button type="submit" class="logout-btn">
+        Logout
+    </button>
+</form>
             </nav>
 
 

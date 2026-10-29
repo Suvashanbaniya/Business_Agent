@@ -1,25 +1,97 @@
 
-from flask import Flask, request, jsonify, render_template
+import os
+import sqlite3
+from pathlib import Path
+from functools import wraps
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    redirect,
+    url_for,
+    session,
+    flash,
+)
 from flask_cors import CORS
+from werkzeug.security import check_password_hash
 
 from ai.llm import ask_llm
 from services.create_ticket import create_ticket
+from ai.customer_chat import product_chat_response
 
 app = Flask(__name__)
 CORS(app)
+# Locate auth.db relative to app.py.
+AUTH_DB_PATH = (
+    Path(__file__).resolve().parent
+    / "database"
+    / "auth.db"
+)
+# -------- Public product chatbot API
+@app.route("/product-chat", methods=["POST"])
+def product_chat():
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "")
 
+    # -------- Validate the incoming message
+    if not isinstance(message, str) or not message.strip():
+        return jsonify({"error": "Please enter a product question."}), 400
 
+    # -------- Generate a product-only response
+    answer = product_chat_response(message)
+
+    return jsonify({"response": answer})
+# Set this environment variable before starting Flask.
+# -------- Flask secret key
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "Suvashan_BusinessAgent_DevKey_2026"
+)
+
+# Basic protection for the session cookie.
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+def login_required(view_function):
+    @wraps(view_function)
+    def wrapper(*args, **kwargs):
+        # Redirect unauthenticated users to the login page.
+        if "user_id" not in session:
+            if request.path == "/chat":
+                return jsonify({
+                    "response": "Please log in to continue.",
+                    "status": "error"
+                }), 401
+
+            return redirect(url_for("login"))
+
+        return view_function(*args, **kwargs)
+
+    return wrapper
+# -------- Public customer homepage
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("customer.html")
 
+# -------- Admin dashboard
+@app.route("/admin")
+@login_required
+def admin_dashboard():
 
+    # Only admins can access the admin dashboard.
+    if session.get("role") != "admin":
+        return redirect(url_for("home"))
+
+    return render_template("admin.html")
 @app.route("/chat", methods=["POST"])
+@login_required
 def chat():
     data = request.get_json(silent=True) or {}
 
     user_message = data.get("message", "")
-    customer_id = data.get("customer_id")
+   # Get the customer ID from the verified login session.
+    customer_id = session.get("customer_id")
 
     # Make sure the message is valid text.
     if not isinstance(user_message, str) or not user_message.strip():
@@ -53,9 +125,15 @@ def chat():
         for keyword in ticket_keywords
     )
 
+    # Only customer accounts can create support tickets.
+    if wants_ticket and session.get("role") != "customer":
+        return jsonify({
+            "response": "Only customer accounts can create support tickets.",
+            "status": "error"
+        }), 403
+
     # Create a ticket only when the customer requests one.
     if wants_ticket:
-
         # A customer ID is required for ticket creation.
         if customer_id is None:
             return jsonify({
@@ -162,6 +240,63 @@ def chat():
             "status": "error"
         }), 500
 
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    # Display the login page when the user first visits.
+    if request.method == "GET":
+        return render_template("login.html")
+
+    # Read the submitted login credentials.
+    login_id = request.form.get("login_id", "").strip()
+    password = request.form.get("password", "")
+
+    if not login_id or not password:
+        flash("Please enter your login ID and password.")
+        return redirect(url_for("login"))
+
+    # Look up the account in the authentication database.
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+
+        user = connection.execute(
+            """
+            SELECT user_id, login_id, password_hash, role, customer_id
+            FROM users
+            WHERE login_id = ?
+            """,
+            (login_id,)
+        ).fetchone()
+
+    # Use the same message for an unknown ID and wrong password.
+    if user is None or not check_password_hash(
+        user["password_hash"], password
+    ):
+        flash("Invalid login ID or password.")
+        return redirect(url_for("login"))
+
+    # Start a fresh session after successful authentication.
+    session.clear()
+    session["user_id"] = user["user_id"]
+    session["login_id"] = user["login_id"]
+    session["role"] = user["role"]
+
+    if user["role"] == "customer":
+        session["customer_id"] = user["customer_id"]
+
+    # For now, both roles go to the existing homepage.
+    # -------- Send each role to its correct interface
+    if user["role"] == "admin":
+        return redirect(url_for("admin_dashboard"))
+
+    return redirect(url_for("home"))
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    # Remove the logged-in user's session data.
+    session.clear()
+    return redirect(url_for("login"))
 
 if __name__ == "__main__":
     app.run(debug=True)

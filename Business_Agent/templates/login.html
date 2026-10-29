@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Welcome Back | Aura</title>
+
+    <!-- Connect the CSS file from Flask's static folder -->
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='login.css') }}">
+
+</head>
+
+<body>
+
+    <!-- Main area: centers the login card and security badges -->
+    <main class="page">
+
+        <!-- Login card -->
+        <section class="login-card">
+
+            <!-- Brand logo -->
+            <div class="brand-logo">
+                <span class="logo-symbol">↗</span>
+            </div>
+
+            <!-- Workspace identity -->
+            <div class="workspace-label">
+                <span class="status-dot"></span>
+                AURA WORKSPACE IDENTITY
+            </div>
+
+            <h1>Welcome back</h1>
+
+            <p class="subtitle">
+                Enter your credentials to access your workspace
+            </p>
+
+            <!-- Authentication tabs -->
+            <div class="auth-tabs">
+                <button class="tab active" type="button">
+                    <span>♙</span> Password
+                </button>
+
+                <button class="tab" type="button">
+                    <span>⚿</span> Magic Link
+                </button>
+            </div>
+
+            <!-- Single sign-on options -->
+            <div class="sso-options">
+                <button class="sso-button" type="button">
+                    <span class="google-icon">G</span>
+                    Continue with Google
+                </button>
+
+                <button class="sso-button" type="button">
+                    <span class="microsoft-icon">
+                        <i></i>
+                        <i></i>
+                        <i></i>
+                        <i></i>
+                    </span>
+                    Continue with Microsoft / SSO
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider">
+                <span>OR CONTINUE WITH EMAIL</span>
+            </div>
+
+            <!-- Login form -->
+           <form action="{{ url_for('login') }}" method="POST">
+
+
+
+<!-- Login ID field -->
+<div class="form-group">
+    <label for="login_id">Login ID</label>
+
+    <div class="input-wrapper">
+        <span class="field-icon">✉</span>
+
+        <input
+            type="text"
+            id="login_id"
+            name="login_id"
+            placeholder="Enter your login ID"
+            autocomplete="username"
+            required
+        >
+    </div>
+</div>
+
+                <!-- Password field -->
+                <div class="form-group">
+
+                    <div class="password-heading">
+                        <label for="password">Password</label>
+                        <a href="#">Forgot password?</a>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <span class="field-icon">♙</span>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- Remember me and passkey -->
+                <div class="form-options">
+
+                    <label class="remember">
+                        <input
+                            type="checkbox"
+                            name="remember"
+                            checked
+                        >
+                        Remember for 30 days
+                    </label>
+
+                    <button class="passkey-button" type="button">
+                        <span>♙</span>
+                        Use Passkey
+                    </button>
+
+                </div>
+
+                <!-- Submit button -->
+                <button class="sign-in-button" type="submit">
+                    Sign In
+                    <span>→</span>
+                </button>
+
+            </form>
+
+            <!-- Signup link -->
+            <p class="signup-text">
+                Don't have an Aura account?
+                <a href="#">Sign up for free ↗</a>
+            </p>
+
+        </section>
+
+        <!-- Security badges -->
+        <div class="security-badges">
+
+            <div class="security-badge">
+                <span>♧</span>
+                256-BIT TLS Encrypted
+            </div>
+
+            <div class="security-badge">
+                <span>▣</span>
+                SOC 2 Type II Certified
+            </div>
+
+            <div class="security-badge">
+                <span>▧</span>
+                FIDO2 WebAuthn Ready
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+
+        <div class="footer-brand">
+            <span class="footer-dot"></span>
+            <span>AI Systems Operational</span>
+        </div>
+
+        <span class="copyright">
+            © 2025 Aura Technologies Inc.
+        </span>
+
+        <nav class="footer-links">
+            <a href="#">Terms of Service</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">System Status</a>
+            
+            
+        </nav>
+
+    </footer>
+
+</body>
+</html>

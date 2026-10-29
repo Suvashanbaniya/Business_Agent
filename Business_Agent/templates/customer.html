@@ -1,0 +1,296 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Business_Agent | Customer Support</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='customer.css') }}">
+</head>
+
+<body>
+
+    <!-- ==================== TOP NAVIGATION ==================== -->
+    <header class="topbar">
+
+        <div class="brand">
+            <div class="brand-logo">☻</div>
+
+            <div>
+                <h2>Business_Agent</h2>
+                <p>AI Customer Support Assistant</p>
+            </div>
+        </div>
+
+        <!-- The logged-in customer's name will be inserted here -->
+        <button class="top-profile" id="profile-menu" type="button">
+            <span class="profile-icon" id="header-avatar"></span>
+
+            <span>
+                <strong id="header-name"></strong>
+                <small>Customer</small>
+            </span>
+
+            <span>⌄</span>
+        </button>
+
+    </header>
+
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <div class="dashboard">
+
+        <!-- ==================== LEFT SIDEBAR ==================== -->
+        <aside class="sidebar">
+
+            <nav class="side-nav">
+
+                <button class="nav-item active" data-view="chat" type="button">
+                    <span>☏</span>
+                    Chat Support
+                </button>
+
+                <button class="nav-item" data-view="orders" type="button">
+                    <span>◇</span>
+                    My Orders
+                </button>
+
+                <button class="nav-item" data-view="tickets" type="button">
+                    <span>♧</span>
+                    My Tickets
+                </button>
+
+                <button class="nav-item" data-view="profile" type="button">
+                    <span>♙</span>
+                    Profile
+                </button>
+
+            </nav>
+
+            <button class="logout-button" id="logout-button" type="button">
+                ↪ <span>Logout</span>
+            </button>
+
+            <div class="help-card">
+                <div class="help-icon">🤖</div>
+
+                <strong>Need help?</strong>
+
+                <p>
+                    Our AI assistant is here 24/7 to help you.
+                </p>
+            </div>
+
+        </aside>
+
+
+        <!-- ==================== MAIN CONTENT ==================== -->
+        <main class="main-content">
+
+            <section class="chat-card">
+
+                <!-- Chat header -->
+                <div class="chat-header">
+
+                    <div class="assistant-avatar">🤖</div>
+
+                    <div class="assistant-details">
+                        <h3>Business_Agent Assistant</h3>
+                        <p>Your AI support assistant</p>
+                    </div>
+
+                    <div class="online-status">
+                        <span></span>
+                        Online
+                    </div>
+
+                </div>
+
+
+                <!--
+                    Chat messages are intentionally empty.
+                    Messages will appear here when the customer sends
+                    a message or when the backend returns a reply.
+                -->
+                <div
+                    id="chat-messages"
+                    class="chat-messages"
+                    aria-live="polite"
+                ></div>
+
+
+                <!-- Quick questions -->
+                <section class="quick-questions">
+
+                    <h4>
+                        <span>ϟ</span>
+                        Quick Questions
+                    </h4>
+
+                    <div class="quick-grid">
+
+                        <button type="button"
+                                data-question="Track my order">
+                            Track my order
+                        </button>
+
+                        <button type="button"
+                                data-question="Show me my support tickets">
+                            View my tickets
+                        </button>
+
+                        <button type="button"
+                                data-question="How can I return a product?">
+                            Return a product
+                        </button>
+
+                        <button type="button"
+                                data-question="Tell me about your products">
+                            Product information
+                        </button>
+
+                        <button type="button"
+                                data-question="How can I contact support?">
+                            Contact support
+                        </button>
+
+                        <button type="button"
+                                data-question="Show me my order history">
+                            My order history
+                        </button>
+
+                    </div>
+
+                </section>
+
+
+                <!-- Message composer -->
+                <form id="chat-form" class="chat-composer">
+
+                    <textarea
+                        id="chat-input"
+                        name="message"
+                        placeholder="Type your message..."
+                        rows="1"
+                        maxlength="2000"
+                        aria-label="Type your message"
+                        required
+                    ></textarea>
+
+                    <button
+                        type="submit"
+                        id="send-button"
+                        aria-label="Send message"
+                    >➤</button>
+
+                </form>
+
+
+                <!-- Error messages -->
+                <div
+                    id="chat-error"
+                    class="chat-error"
+                    role="alert"
+                    hidden
+                ></div>
+
+            </section>
+
+        </main>
+
+
+        <!-- ==================== RIGHT SIDEBAR ==================== -->
+        <aside class="right-sidebar">
+
+
+            <!-- Customer account -->
+            <section class="info-card account-card">
+
+                <h3>
+                    <span class="section-icon">♟</span>
+                    Your Account
+                </h3>
+
+                <!-- Real customer information will be inserted here -->
+                <div id="account-details"></div>
+
+            </section>
+
+
+            <!-- Recent orders -->
+            <section class="info-card">
+
+                <div class="section-heading">
+
+                    <h3>
+                        <span class="section-icon">▦</span>
+                        Recent Orders
+                    </h3>
+
+                    <button
+                        class="view-all"
+                        data-view="orders"
+                        type="button"
+                    >
+                        View all
+                    </button>
+
+                </div>
+
+                <!-- Real orders will be inserted here -->
+                <div id="recent-orders"></div>
+
+            </section>
+
+
+            <!-- Support tickets -->
+            <section class="info-card">
+
+                <div class="section-heading">
+
+                    <h3>
+                        <span class="section-icon">♧</span>
+                        Support Tickets
+                    </h3>
+
+                    <button
+                        class="view-all"
+                        data-view="tickets"
+                        type="button"
+                    >
+                        View all
+                    </button>
+
+                </div>
+
+                <!-- Real tickets will be inserted here -->
+                <div id="recent-tickets"></div>
+
+            </section>
+
+
+            <!-- Privacy notice -->
+            <section class="privacy-card">
+
+                <strong>🛡️ &nbsp; Your privacy matters</strong>
+
+                <p>
+                    We only show you your own orders and tickets.
+                    Your data is safe and secure.
+                </p>
+
+            </section>
+
+        </aside>
+
+    </div>
+
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script src="{{ url_for('static', filename='customer.js') }}"></script>
+
+</body>
+</html>
