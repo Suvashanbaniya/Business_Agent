@@ -14,8 +14,8 @@ from flask import (
     flash,
 )
 from flask_cors import CORS
-from werkzeug.security import check_password_hash
-
+from werkzeug.security import check_password_hash, generate_password_hash
+from ai.intent_detector import detect_intent
 from ai.llm import ask_llm
 from services.create_ticket import create_ticket
 from ai.customer_chat import product_chat_response
@@ -27,6 +27,12 @@ AUTH_DB_PATH = (
     Path(__file__).resolve().parent
     / "database"
     / "auth.db"
+)
+# Locate customer.db relative to app.py.
+CUSTOMER_DB_PATH = (
+    Path(__file__).resolve().parent
+    / "database"
+    / "customer.db"
 )
 # -------- Public product chatbot API
 @app.route("/product-chat", methods=["POST"])
@@ -52,6 +58,121 @@ app.secret_key = os.environ.get(
 # Basic protection for the session cookie.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+
+    # Display the registration form.
+    if request.method == "GET":
+        return render_template("register.html")
+
+    # Get information submitted through the registration form.
+    full_name = request.form.get("full_name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    phone = request.form.get("phone", "").strip()
+    password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    # Validate required fields.
+    if not full_name or not email or not password or not confirm_password:
+        flash("Please fill in all required fields.")
+        return redirect(url_for("register"))
+
+    # Basic email validation.
+    if "@" not in email or "." not in email.split("@")[-1]:
+        flash("Please enter a valid email address.")
+        return redirect(url_for("register"))
+
+    # Validate password.
+    if len(password) < 8:
+        flash("Password must contain at least 8 characters.")
+        return redirect(url_for("register"))
+
+    if password != confirm_password:
+        flash("Passwords do not match.")
+        return redirect(url_for("register"))
+
+    # Check whether the email already exists in customers.
+    with sqlite3.connect(CUSTOMER_DB_PATH) as connection:
+        existing_customer = connection.execute(
+            """
+            SELECT customer_id
+            FROM customers
+            WHERE LOWER(email) = ?
+            """,
+            (email,)
+        ).fetchone()
+
+    if existing_customer:
+        flash("An account with this email already exists.")
+        return redirect(url_for("register"))
+
+    # Email is also used as the login ID.
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+        existing_user = connection.execute(
+            """
+            SELECT user_id
+            FROM users
+            WHERE LOWER(login_id) = ?
+            """,
+            (email,)
+        ).fetchone()
+
+    if existing_user:
+        flash("This email is already associated with an account.")
+        return redirect(url_for("register"))
+
+    # Hash the password before storing it.
+    password_hash = generate_password_hash(password)
+
+    customer_id = None
+
+    try:
+        # First, create the customer record.
+        with sqlite3.connect(CUSTOMER_DB_PATH) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO customers (full_name, email, phone)
+                VALUES (?, ?, ?)
+                """,
+                (full_name, email, phone or None)
+            )
+
+            customer_id = cursor.lastrowid
+
+        # Then, create the login account linked to that customer.
+        with sqlite3.connect(AUTH_DB_PATH) as connection:
+            connection.execute(
+                """
+                INSERT INTO users (
+                    login_id,
+                    password_hash,
+                    role,
+                    customer_id
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (email, password_hash, "customer", customer_id)
+            )
+
+    except sqlite3.IntegrityError:
+        # If account creation fails, remove the customer record
+        # created in the first database.
+        if customer_id is not None:
+            with sqlite3.connect(CUSTOMER_DB_PATH) as connection:
+                connection.execute(
+                    "DELETE FROM customers WHERE customer_id = ?",
+                    (customer_id,)
+                )
+
+        flash("Unable to create your account. Please check your details.")
+        return redirect(url_for("register"))
+
+    flash("Your account has been created successfully. Please log in.")
+    return redirect(url_for("login"))
+
 
 def login_required(view_function):
     @wraps(view_function)
@@ -103,34 +224,21 @@ def chat():
     user_message = user_message.strip()
 
     print("\nCustomer:", user_message)
+    
+    
+    
+    # Identify what the customer wants.
+    intent_result = detect_intent(user_message)
 
-    # Check whether the customer explicitly requests a ticket.
-    message_lower = user_message.lower()
+    intent = intent_result["intent"]
+    confidence = intent_result["confidence"]
+    needs_human = intent_result["needs_human"]
 
-    ticket_keywords = [
-        "create a ticket",
-        "create ticket",
-        "open a ticket",
-        "open ticket",
-        "raise a ticket",
-        "raise ticket",
-        "report an issue",
-        "report a problem",
-        "submit a complaint",
-        "log a complaint"
-    ]
-
-    wants_ticket = any(
-        keyword in message_lower
-        for keyword in ticket_keywords
-    )
-
-    # Only customer accounts can create support tickets.
-    if wants_ticket and session.get("role") != "customer":
-        return jsonify({
-            "response": "Only customer accounts can create support tickets.",
-            "status": "error"
-        }), 403
+    print("Detected intent:", intent)
+    print("Confidence:", confidence)
+    print("Needs human review:", needs_human)
+    # Create a ticket for complaints and refund requests.
+    wants_ticket = intent in ["complaint", "refund_request"]
 
     # Create a ticket only when the customer requests one.
     if wants_ticket:
@@ -156,20 +264,14 @@ def chat():
                 "status": "error"
             }), 400
 
-        # Remove ticket-request phrases to form a basic title.
-        issue_title = user_message
+        # Generate a title based on the detected intent.
+        if intent == "refund_request":
+            issue_title = "Customer refund request"
+        else:
+            issue_title = "Customer complaint"
 
-        for keyword in ticket_keywords:
-            issue_title = issue_title.replace(keyword, "")
-
-        issue_title = issue_title.strip(" .,:-")
-
-        if not issue_title:
-            issue_title = "Customer support request"
-
-        # Keep the title short enough to be readable.
+        # Keep the original message as the ticket description.
         issue_title = issue_title[:100]
-
         try:
             # Create the ticket using the existing service.
             ticket_id = create_ticket(

@@ -67,7 +67,7 @@ async function sendMessage(text) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-        const response = await fetch("/chat", {
+        const response = await fetch("/product-chat", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
