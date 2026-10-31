@@ -22,6 +22,16 @@ from ai.customer_chat import product_chat_response
 
 app = Flask(__name__)
 CORS(app)
+
+
+# Configure Flask session security.
+app.secret_key = os.environ.get(
+    "FLASK_SECRET_KEY",
+    "Suvashan_BusinessAgent_DevKey_2026"
+)
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Locate auth.db relative to app.py.
 AUTH_DB_PATH = (
     Path(__file__).resolve().parent
@@ -34,7 +44,7 @@ CUSTOMER_DB_PATH = (
     / "database"
     / "customer.db"
 )
-# -------- Public product chatbot API
+# -------- Unified customer chatbot API
 @app.route("/product-chat", methods=["POST"])
 def product_chat():
     data = request.get_json(silent=True) or {}
@@ -42,24 +52,92 @@ def product_chat():
 
     # -------- Validate the incoming message
     if not isinstance(message, str) or not message.strip():
-        return jsonify({"error": "Please enter a product question."}), 400
+        return jsonify({
+            "response": "Please enter a message.",
+            "status": "error"
+        }), 400
 
-    # -------- Generate a product-only response
-    answer = product_chat_response(message)
+    message = message.strip()
 
-    return jsonify({"response": answer})
-# Set this environment variable before starting Flask.
-# -------- Flask secret key
-app.secret_key = os.environ.get(
-    "FLASK_SECRET_KEY",
-    "Suvashan_BusinessAgent_DevKey_2026"
-)
+    try:
+        # -------- Detect the customer's intent
+        intent_result = detect_intent(message)
+        intent = intent_result["intent"]
 
-# Basic protection for the session cookie.
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+        print("Detected intent:", intent)
 
+        # -------- Handle complaints and refund requests
+        if intent in ["complaint", "refund_request"]:
 
+            # Only logged-in customers can create tickets.
+            if session.get("role") != "customer":
+                return jsonify({
+                    "response": (
+                        "I'm sorry to hear about this. "
+                        "Please sign in to your customer account "
+                        "so I can create a support ticket for you."
+                    ),
+                    "status": "login_required"
+                }), 401
+
+            customer_id = session.get("customer_id")
+
+            # Validate the customer ID from the session.
+            if (
+                isinstance(customer_id, bool)
+                or not isinstance(customer_id, int)
+                or customer_id <= 0
+            ):
+                return jsonify({
+                    "response": "We couldn't verify your customer account. Please sign in again.",
+                    "status": "error"
+                }), 400
+
+            # Generate a ticket title based on the intent.
+            if intent == "refund_request":
+                issue_title = "Customer refund request"
+            else:
+                issue_title = "Customer complaint"
+
+            # Create the support ticket.
+            ticket_id = create_ticket(
+                customer_id,
+                issue_title,
+                message
+            )
+
+            return jsonify({
+                "response": (
+                    f"Your support ticket #{ticket_id} "
+                    "has been created successfully. "
+                    "Our support team can review your issue."
+                ),
+                "status": "success",
+                "ticket_id": ticket_id,
+                "ticket_status": "Open"
+            }), 201
+
+        # -------- Handle product questions publicly
+        answer = product_chat_response(message)
+
+        return jsonify({
+            "response": answer,
+            "status": "success",
+            "model": "llama3"
+        })
+
+    except Exception:
+        app.logger.exception("Customer chatbot request failed")
+
+        return jsonify({
+            "response": (
+                "Sorry, I'm having trouble responding right now. "
+                "Please try again later."
+            ),
+            "status": "error"
+        }), 500
+        
+    
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -205,6 +283,9 @@ def admin_dashboard():
         return redirect(url_for("home"))
 
     return render_template("admin.html")
+
+
+
 @app.route("/chat", methods=["POST"])
 @login_required
 def chat():
@@ -320,6 +401,26 @@ def chat():
             }), 500
 
     # If no ticket was requested, use the normal AI chatbot.
+    # Route product enquiries to the product chatbot.
+    if intent == "product_inquiry":
+        try:
+            reply = product_chat_response(user_message)
+
+            return jsonify({
+                "response": reply,
+                "status": "success",
+                "model": "llama3"
+            })
+
+        except Exception:
+            app.logger.exception("Product chatbot request failed")
+
+            return jsonify({
+                "response": "Sorry, I couldn't retrieve product information right now.",
+                "status": "error"
+            }), 500
+
+    # Handle other messages with the normal AI chatbot.
     try:
         reply = ask_llm(user_message)
 

@@ -77,13 +77,21 @@ async function sendMessage(text) {
             })
         });
 
-        const data = await response.json();
+       const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(
-                data.error || data.message || "Unable to get a response."
-            );
-        }
+       
+// Display the login message as a normal bot response.
+if (data.status === "login_required") {
+    addMessage(data.response, "bot");
+    return;
+}
+
+// Handle other server errors.
+if (!response.ok) {
+    throw new Error(
+        data.error || data.message || "Unable to get a response."
+    );
+}
 
         const reply = data.response ?? data.reply ?? data.answer;
 
