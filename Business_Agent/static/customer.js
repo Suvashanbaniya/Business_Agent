@@ -158,8 +158,33 @@ const viewTitles = {
     orders: "My Orders",
     tickets: "My Support Tickets",
     profile: "My Profile"
-};
+};// -------- Load customer support tickets
+async function loadTickets() {
+    try {
+        // Request tickets belonging to the logged-in customer.
+        const response = await fetch("/my-tickets");
 
+        const data = await response.json();
+
+        // Handle authentication and other API errors.
+        if (!response.ok) {
+            throw new Error(
+                data.response || "Unable to load your support tickets."
+            );
+        }
+
+        // Check whether the API returned a valid ticket list.
+        if (!Array.isArray(data.tickets)) {
+            throw new Error("Invalid ticket data received.");
+        }
+
+        console.log("Customer tickets:", data.tickets);
+
+    } catch (error) {
+        console.error("Ticket loading error:", error);
+    }
+   
+}
 function showView(view) {
     document.querySelectorAll(".nav-item").forEach((button) => {
         button.classList.toggle(
@@ -214,3 +239,4 @@ document.getElementById("profile-menu").addEventListener("click", () => {
 document.getElementById("logout-button").addEventListener("click", () => {
     window.location.href = "/login";
 });
+ loadTickets();

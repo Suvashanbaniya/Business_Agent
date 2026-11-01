@@ -17,7 +17,7 @@ from flask_cors import CORS
 from werkzeug.security import check_password_hash, generate_password_hash
 from ai.intent_detector import detect_intent
 from ai.llm import ask_llm
-from services.create_ticket import create_ticket
+from services.create_ticket import create_ticket , get_customer_tickets
 from ai.customer_chat import product_chat_response
 
 app = Flask(__name__)
@@ -66,9 +66,58 @@ def product_chat():
 
         print("Detected intent:", intent)
 
+        # -------- Handle existing support ticket status requests
+        if intent == "ticket_status":
+            # Only logged-in customers can access their tickets.
+            if session.get("role") != "customer":
+                return jsonify({
+                    "response": (
+                        "Please sign in to your customer account "
+                        "so I can check your support tickets."
+                    ),
+                    "status": "login_required"
+                }), 401
+
+            customer_id = session.get("customer_id")
+
+            # Retrieve tickets belonging to this customer only.
+            tickets = get_customer_tickets(customer_id)
+
+            if not tickets:
+                return jsonify({
+                    "response": "You don't have any support tickets yet.",
+                    "status": "success"
+                }), 200
+
+            # Display the customer's existing tickets.
+            ticket_messages = []
+
+            for ticket in tickets:
+                ticket_messages.append(
+                    f"Ticket #{ticket[0]}: {ticket[2]}\n"
+                    f"Status: {ticket[4]}\n"
+                    f"Created: {ticket[5]}"
+                )
+
+            return jsonify({
+                "response": (
+                    "Here are your support tickets:\n\n"
+                    + "\n\n".join(ticket_messages)
+                ),
+                "status": "success",
+                "tickets": [
+                    {
+                        "ticket_id": ticket[0],
+                        "issue_title": ticket[2],
+                        "status": ticket[4],
+                        "created_at": ticket[5]
+                    }
+                    for ticket in tickets
+                ]
+            }), 200
+
         # -------- Handle complaints and refund requests
         if intent in ["complaint", "refund_request"]:
-
             # Only logged-in customers can create tickets.
             if session.get("role") != "customer":
                 return jsonify({
@@ -443,6 +492,63 @@ def chat():
             "status": "error"
         }), 500
 
+
+# -------- Get tickets belonging to the logged-in customer
+@app.route("/my-tickets", methods=["GET"])
+@login_required
+def my_tickets():
+
+    # Only customer accounts can access their tickets.
+    if session.get("role") != "customer":
+        return jsonify({
+            "response": "Access denied.",
+            "status": "error"
+        }), 403
+
+    customer_id = session.get("customer_id")
+
+    # Validate the customer ID.
+    if (
+        isinstance(customer_id, bool)
+        or not isinstance(customer_id, int)
+        or customer_id <= 0
+    ):
+        return jsonify({
+            "response": "Invalid customer account.",
+            "status": "error"
+        }), 400
+
+    try:
+        tickets = get_customer_tickets(customer_id)
+
+        # Convert database records into JSON-friendly objects.
+        ticket_list = []
+
+        for ticket in tickets:
+            ticket_list.append({
+                "ticket_id": ticket[0],
+                "customer_id": ticket[1],
+                "issue_title": ticket[2],
+                "issue_description": ticket[3],
+                "status": ticket[4],
+                "created_at": ticket[5]
+            })
+
+        return jsonify({
+            "status": "success",
+            "tickets": ticket_list
+        }), 200
+
+    except Exception:
+        app.logger.exception("Failed to retrieve customer tickets")
+
+        return jsonify({
+            "response": "Unable to retrieve your tickets right now.",
+            "status": "error"
+        }), 500
+        
+        
+        
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

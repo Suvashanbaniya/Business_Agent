@@ -12,6 +12,7 @@ VALID_INTENTS = [
     "general_question",
     "positive_reply",
     "negative_reply",
+    "ticket_status",
     "other"
 ]
 
@@ -23,15 +24,17 @@ You are an intent classification system for a business
 customer support agent.
 
 Classify the customer's message into exactly one category:
-
 - order_status: asking about an order, delivery, or shipping
+- ticket_status: asking about an existing support ticket,
+  previous complaint, ticket progress, or resolution
 - product_inquiry: asking about product price, stock, or warranty
 - refund_request: requesting a refund or return
-- complaint: reporting a problem or expressing dissatisfaction
+- complaint: reporting a new problem or expressing dissatisfaction
 - general_question: asking a general business question
-- positive_reply: mainly expressing thanks, satisfaction, or praise
-- negative_reply: mainly expressing dissatisfaction or a negative opinion
-- other: anything that does not fit the categories above
+- Questions about previously created tickets must be classified as ticket_status.
+- Reporting a new product problem must be classified as complaint.
+- Do not classify ticket-status questions as general_question.
+
 
 Rules:
 - Classify the customer's main intent.
