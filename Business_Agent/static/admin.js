@@ -1,4 +1,80 @@
 document.addEventListener("DOMContentLoaded", function () {
+    // -------- Load real support tickets from Flask API
+async function loadAdminTickets() {
+    const ticketRows = $("#ticketRows");
+
+    try {
+        const response = await fetch("/admin/api/tickets");
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.response || "Failed to load tickets");
+        }
+
+        // Remove the existing demo ticket rows.
+        ticketRows.innerHTML = "";
+
+        // Display a message when no tickets exist.
+        if (data.tickets.length === 0) {
+            ticketRows.innerHTML = `
+                <tr>
+                    <td colspan="4">No support tickets found.</td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Create one table row for every real ticket.
+        data.tickets.forEach(ticket => {
+            const row = document.createElement("tr");
+            const ticketCell = document.createElement("td");
+
+// Create a clickable ticket ID.
+const ticketButton = document.createElement("button");
+
+ticketButton.className = "ticket-link";
+ticketButton.dataset.ticket = ticket.ticket_id;
+ticketButton.textContent = `#${ticket.ticket_id}`;
+
+// Display the ticket title separately.
+const title = document.createElement("small");
+title.textContent = ticket.issue_title;
+
+
+
+ticketCell.append(ticketButton, title);
+            const customerCell = document.createElement("td");
+            customerCell.textContent =
+                `${ticket.full_name} (${ticket.email})`;
+
+            const dateCell = document.createElement("td");
+            dateCell.textContent = ticket.created_at;
+
+            const statusCell = document.createElement("td");
+            const statusBadge = document.createElement("span");
+
+            statusBadge.className = "status";
+            statusBadge.textContent = ticket.status;
+
+            statusCell.appendChild(statusBadge);
+
+            row.append(
+                ticketCell,
+                customerCell,
+                dateCell,
+                statusCell
+            );
+
+            ticketRows.appendChild(row);
+        });
+
+    } catch (error) {
+        console.error("Error loading admin tickets:", error);
+        showToast("Unable to load support tickets.");
+    }
+}
+
+// Load tickets when the admin dashboard opens.
 
     // ==================== HELPER FUNCTIONS ====================
 
@@ -70,7 +146,7 @@ document.addEventListener("DOMContentLoaded", function () {
         closeModal();
     });
 
-
+loadAdminTickets();
     // ==================== CREATE USER ====================
 
     $("#createUserBtn").addEventListener("click", function () {
@@ -187,105 +263,107 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ==================== EDIT TICKET ====================
 
-    $$(".ticket-link").forEach(function (button) {
+// ==================== EDIT TICKET ====================
 
-        button.addEventListener("click", function () {
+// Event delegation: handles existing and dynamically created ticket buttons.
+$("#ticketRows").addEventListener("click", function (event) {
 
-            const row = button.closest("tr");
-            const cells = $$("td", row);
+    const button = event.target.closest(".ticket-link");
 
-            const title = cells[0]
-                .querySelector("small")
-                .textContent;
+    if (!button) return;
 
-            const category = cells[1].textContent.trim();
+    const row = button.closest("tr");
+    const cells = $$("td", row);
 
-            const currentStatus = cells[3]
-                .querySelector(".status")
-                .textContent
-                .replace("●", "")
-                .trim();
+    const ticketId = button.dataset.ticket;
 
-            openModal(
-                "Edit Ticket " + button.dataset.ticket,
+    const title = cells[0].querySelector("small").textContent;
 
-                `
-                    <label class="modal-field">
-                        Ticket title
+    const currentStatus = cells[3]
+        .querySelector(".status")
+        .textContent
+        .replace("●", "")
+        .trim();
 
-                        <input
-                            name="title"
-                            required
-                        >
-                    </label>
+    openModal(
+        "Edit Ticket #" + ticketId,
 
-                    <label class="modal-field">
-                        Service category
+        `
+            <label class="modal-field">
+                Ticket title
+                <input name="title" required>
+            </label>
 
-                        <select name="category">
-                            <option>Service One</option>
-                            <option>Service Two</option>
-                            <option>Service Three</option>
-                            <option>Service Four</option>
-                        </select>
-                    </label>
+            <label class="modal-field">
+                Ticket status
 
-                    <label class="modal-field">
-                        Ticket status
+                <select name="status">
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                </select>
+            </label>
+        `,
 
-                        <select name="status">
-                            <option>Completed</option>
-                            <option>Pending</option>
-                            <option>Active</option>
-                            <option>Canceled</option>
-                        </select>
-                    </label>
-                `,
+        function (values) {
 
-                function (values) {
+            // Send the new status to Flask.
+            fetch(`/admin/api/tickets/${ticketId}`, {
+                method: "PUT",
 
-                    cells[0].querySelector("small").textContent =
-                        values.title;
-
-                    cells[1].textContent = values.category;
-
-                    const status = document.createElement("span");
-
-                    status.className =
-                        "status " +
-                        (
-                            values.status === "Active"
-                                ? "active-status"
-                                : values.status.toLowerCase()
-                        );
-
-                    status.textContent = "● " + values.status;
-
-                    cells[3].replaceChildren(status);
-
-                    row.dataset.search = (
-                        button.dataset.ticket + " " +
-                        values.title + " " +
-                        values.category + " " +
-                        values.status
-                    ).toLowerCase();
-
-                    notify("Ticket updated in the dashboard preview.");
-
+                headers: {
+                    "Content-Type": "application/json"
                 },
 
-                "Update ticket"
-            );
+                body: JSON.stringify({
+                    status: values.status
+                })
+            })
 
-            // Set the current values after the modal opens.
-            $('[name="title"]', modal).value = title;
-            $('[name="category"]', modal).value = category;
-            $('[name="status"]', modal).value = currentStatus;
+            .then(response => response.json().then(data => ({
+                ok: response.ok,
+                data
+            })))
 
-        });
+            .then(({ ok, data }) => {
 
-    });
+                if (!ok) {
+                    throw new Error(
+                        data.response || "Ticket update failed."
+                    );
+                }
 
+                // Update the displayed ticket title.
+                cells[0].querySelector("small").textContent =
+                    values.title;
+
+                // Update the displayed status.
+                const statusBadge = document.createElement("span");
+
+                statusBadge.className = "status";
+                statusBadge.textContent = "● " + values.status;
+
+                cells[3].replaceChildren(statusBadge);
+
+                notify("Ticket status updated successfully.");
+
+            })
+
+            .catch(error => {
+                console.error("Ticket update error:", error);
+                notify(error.message);
+            });
+
+        },
+
+        "Update ticket"
+    );
+
+    // Fill the modal with existing values.
+    $('[name="title"]', modal).value = title;
+    $('[name="status"]', modal).value = currentStatus;
+
+});
 
     // ==================== SIDEBAR NAVIGATION ====================
 

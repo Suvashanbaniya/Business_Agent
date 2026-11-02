@@ -118,3 +118,4 @@ INSERT INTO support_tickets
 VALUES
 (1, 'Refund Request', 'Customer wants refund for damaged item', 'Open'),
 (2, 'Late Delivery', 'Package delayed more than expected', 'In Progress');
+

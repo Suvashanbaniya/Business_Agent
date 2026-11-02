@@ -335,6 +335,120 @@ def admin_dashboard():
 
 
 
+# -------- Admin: Retrieve all customer support tickets
+@app.route("/admin/api/tickets", methods=["GET"])
+@login_required
+def get_all_tickets():
+
+    # Only administrators can access all customer tickets.
+    if session.get("role") != "admin":
+        return jsonify({
+            "status": "error",
+            "response": "Access denied. Admin privileges required."
+        }), 403
+
+    try:
+        with sqlite3.connect(CUSTOMER_DB_PATH) as conn:
+
+            # Retrieve tickets together with their customer information.
+            conn.row_factory = sqlite3.Row
+
+            cursor = conn.execute("""
+                SELECT
+                    t.ticket_id,
+                    t.customer_id,
+                    c.full_name,
+                    c.email,
+                    c.phone,
+                    t.issue_title,
+                    t.issue_description,
+                    t.status,
+                    t.created_at
+
+                FROM support_tickets AS t
+
+                INNER JOIN customers AS c
+                    ON t.customer_id = c.customer_id
+
+                ORDER BY t.created_at DESC
+            """)
+
+            tickets = [dict(row) for row in cursor.fetchall()]
+
+        return jsonify({
+            "status": "success",
+            "total_tickets": len(tickets),
+            "tickets": tickets
+        }), 200
+
+    except Exception:
+        app.logger.exception("Failed to retrieve admin tickets")
+
+        return jsonify({
+            "status": "error",
+            "response": "Unable to retrieve tickets."
+        }), 500
+
+
+# -------- Admin: Update support ticket status
+@app.route("/admin/api/tickets/<int:ticket_id>", methods=["PUT"])
+@login_required
+def update_admin_ticket(ticket_id):
+
+    # Only administrators can update ticket status.
+    if session.get("role") != "admin":
+        return jsonify({
+            "status": "error",
+            "response": "Admin privileges required."
+        }), 403
+
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status")
+
+    # Only allow these three ticket statuses.
+    allowed_statuses = ["Open", "In Progress", "Resolved"]
+
+    if new_status not in allowed_statuses:
+        return jsonify({
+            "status": "error",
+            "response": "Invalid ticket status."
+        }), 400
+
+    try:
+        with sqlite3.connect(CUSTOMER_DB_PATH) as conn:
+
+            cursor = conn.execute(
+                """
+                UPDATE support_tickets
+                SET status = ?
+                WHERE ticket_id = ?
+                """,
+                (new_status, ticket_id)
+            )
+
+            if cursor.rowcount == 0:
+                return jsonify({
+                    "status": "error",
+                    "response": "Ticket not found."
+                }), 404
+
+            conn.commit()
+
+        return jsonify({
+            "status": "success",
+            "response": "Ticket status updated successfully.",
+            "ticket_id": ticket_id,
+            "new_status": new_status
+        }), 200
+
+    except Exception:
+        app.logger.exception("Failed to update ticket status")
+
+        return jsonify({
+            "status": "error",
+            "response": "Unable to update ticket status."
+        }), 500
+
 @app.route("/chat", methods=["POST"])
 @login_required
 def chat():
