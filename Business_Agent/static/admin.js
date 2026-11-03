@@ -264,9 +264,8 @@ loadAdminTickets();
     // ==================== EDIT TICKET ====================
 
 // ==================== EDIT TICKET ====================
-
-// Event delegation: handles existing and dynamically created ticket buttons.
-$("#ticketRows").addEventListener("click", function (event) {
+// Event delegation: handles dynamically created ticket buttons.
+$("#ticketRows").addEventListener("click", async function (event) {
 
     const button = event.target.closest(".ticket-link");
 
@@ -274,94 +273,210 @@ $("#ticketRows").addEventListener("click", function (event) {
 
     const row = button.closest("tr");
     const cells = $$("td", row);
-
     const ticketId = button.dataset.ticket;
 
-    const title = cells[0].querySelector("small").textContent;
+    try {
 
-    const currentStatus = cells[3]
-        .querySelector(".status")
-        .textContent
-        .replace("●", "")
-        .trim();
+        // Retrieve ticket details and conversation history.
+        const response = await fetch(
+            `/admin/api/tickets/${ticketId}/messages`
+        );
 
-    openModal(
-        "Edit Ticket #" + ticketId,
+        const data = await response.json();
 
-        `
-            <label class="modal-field">
-                Ticket title
-                <input name="title" required>
-            </label>
+        if (!response.ok) {
+            throw new Error(
+                data.response || "Unable to load ticket."
+            );
+        }
 
-            <label class="modal-field">
-                Ticket status
+        const ticket = data.ticket;
+        const messages = data.messages;
 
-                <select name="status">
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
-                </select>
-            </label>
-        `,
+        // Escape user-generated content before inserting it into HTML.
+        const escapeHTML = (value) => {
+            const element = document.createElement("div");
+            element.textContent = value ?? "";
+            return element.innerHTML;
+        };
 
-        function (values) {
+        // Generate the conversation history.
+        const conversationHTML = messages.length
+            ? messages.map(message => `
+                <div class="ticket-message ${message.sender_role}">
+                    <strong>
+                        ${message.sender_role === "admin"
+                            ? "Admin"
+                            : "Customer"}
+                    </strong>
 
-            // Send the new status to Flask.
-            fetch(`/admin/api/tickets/${ticketId}`, {
-                method: "PUT",
+                    <p>${escapeHTML(message.message)}</p>
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                    <small>${escapeHTML(message.created_at)}</small>
+                </div>
+            `).join("")
+            : `<p class="empty-conversation">
+                No messages yet. Send the first reply.
+               </p>`;
 
-                body: JSON.stringify({
-                    status: values.status
-                })
-            })
+        // Open the existing modal with ticket details.
+        openModal(
+            `Ticket #${ticket.ticket_id}`,
 
-            .then(response => response.json().then(data => ({
-                ok: response.ok,
-                data
-            })))
+            `
+                <div class="ticket-details">
 
-            .then(({ ok, data }) => {
+                    <h3>${escapeHTML(ticket.issue_title)}</h3>
 
-                if (!ok) {
-                    throw new Error(
-                        data.response || "Ticket update failed."
-                    );
+                    <p>
+                        <strong>Customer:</strong>
+                        ${escapeHTML(ticket.full_name)}
+                    </p>
+
+                    <p>
+                        <strong>Email:</strong>
+                        ${escapeHTML(ticket.email)}
+                    </p>
+
+                    <p>
+                        <strong>Original complaint:</strong>
+                    </p>
+
+                    <p class="ticket-description">
+                        ${escapeHTML(ticket.issue_description)}
+                    </p>
+
+                    <label class="modal-field">
+                        Ticket status
+
+                        <select name="status">
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </label>
+
+                    <hr>
+
+                    <h3>Conversation History</h3>
+
+                    <div class="ticket-conversation">
+                        ${conversationHTML}
+                    </div>
+
+                    <label class="modal-field">
+                        Your reply
+
+                        <textarea
+                            name="message"
+                            rows="4"
+                            placeholder="Write your reply to the customer..."
+                        ></textarea>
+                    </label>
+
+                </div>
+            `,
+
+            async function (values) {
+
+                const message = values.message.trim();
+
+                const newStatus = values.status;
+                const oldStatus = ticket.status;
+
+                if (!message && newStatus === oldStatus) {
+                    notify("Write a reply or change the ticket status.");
+                    return;
                 }
 
-                // Update the displayed ticket title.
-                cells[0].querySelector("small").textContent =
-                    values.title;
+                try {
 
-                // Update the displayed status.
-                const statusBadge = document.createElement("span");
+                    // Save the admin reply if one was entered.
+                    if (message) {
 
-                statusBadge.className = "status";
-                statusBadge.textContent = "● " + values.status;
+                        const replyResponse = await fetch(
+                            `/admin/api/tickets/${ticketId}/messages`,
+                            {
+                                method: "POST",
 
-                cells[3].replaceChildren(statusBadge);
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
 
-                notify("Ticket status updated successfully.");
+                                body: JSON.stringify({
+                                    message: message
+                                })
+                            }
+                        );
 
-            })
+                        const replyData = await replyResponse.json();
 
-            .catch(error => {
-                console.error("Ticket update error:", error);
-                notify(error.message);
-            });
+                        if (!replyResponse.ok) {
+                            throw new Error(
+                                replyData.response || "Failed to send reply."
+                            );
+                        }
+                    }
 
-        },
+                    // Update ticket status if it has changed.
+                    if (newStatus !== oldStatus) {
 
-        "Update ticket"
-    );
+                        const statusResponse = await fetch(
+                            `/admin/api/tickets/${ticketId}`,
+                            {
+                                method: "PUT",
 
-    // Fill the modal with existing values.
-    $('[name="title"]', modal).value = title;
-    $('[name="status"]', modal).value = currentStatus;
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+
+                                body: JSON.stringify({
+                                    status: newStatus
+                                })
+                            }
+                        );
+
+                        const statusData = await statusResponse.json();
+
+                        if (!statusResponse.ok) {
+                            throw new Error(
+                                statusData.response || "Status update failed."
+                            );
+                        }
+
+                        // Update the status shown in the ticket table.
+                        const statusBadge = document.createElement("span");
+
+                        statusBadge.className = "status";
+                        statusBadge.textContent = "● " + newStatus;
+
+                        cells[3].replaceChildren(statusBadge);
+                    }
+
+                    notify("Ticket updated successfully.");
+
+                    // Reload the latest ticket information.
+                    closeModal();
+                    loadAdminTickets();
+
+                } catch (error) {
+                    console.error("Ticket update error:", error);
+                    notify(error.message);
+                }
+            },
+
+            "Send Reply"
+        );
+
+        // Set the existing ticket status in the modal.
+        $('[name="status"]', modal).value = ticket.status;
+
+    } catch (error) {
+
+        console.error("Ticket details error:", error);
+        notify(error.message);
+
+    }
 
 });
 

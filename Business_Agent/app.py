@@ -18,6 +18,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ai.intent_detector import detect_intent
 from ai.llm import ask_llm
 from services.create_ticket import create_ticket , get_customer_tickets
+from services.ticket_message_service import (
+    add_ticket_message,
+    get_ticket_messages
+)
 from ai.customer_chat import product_chat_response
 
 app = Flask(__name__)
@@ -387,6 +391,119 @@ def get_all_tickets():
         return jsonify({
             "status": "error",
             "response": "Unable to retrieve tickets."
+        }), 500
+
+
+@app.route("/admin/api/tickets/<int:ticket_id>/messages", methods=["GET"])
+@login_required
+def get_admin_ticket_messages(ticket_id):
+
+    # Only admins can access this endpoint
+    if session.get("role") != "admin":
+        return jsonify({
+            "status": "error",
+            "response": "Admin privileges required."
+        }), 403
+
+    try:
+        with sqlite3.connect(CUSTOMER_DB_PATH) as conn:
+
+            conn.row_factory = sqlite3.Row
+
+            # Retrieve the ticket details
+            cursor = conn.execute(
+                """
+                SELECT
+                    t.ticket_id,
+                    t.customer_id,
+                    c.full_name,
+                    c.email,
+                    t.issue_title,
+                    t.issue_description,
+                    t.status,
+                    t.created_at
+                FROM support_tickets AS t
+                INNER JOIN customers AS c
+                    ON t.customer_id = c.customer_id
+                WHERE t.ticket_id = ?
+                """,
+                (ticket_id,)
+            )
+
+            ticket = cursor.fetchone()
+
+            if ticket is None:
+                return jsonify({
+                    "status": "error",
+                    "response": "Ticket not found."
+                }), 404
+
+        # Retrieve the ticket conversation
+        messages = get_ticket_messages(ticket_id)
+
+        return jsonify({
+            "status": "success",
+            "ticket": dict(ticket),
+            "messages": messages
+        }), 200
+
+    except Exception:
+        app.logger.exception("Failed to retrieve ticket details")
+
+        return jsonify({
+            "status": "error",
+            "response": "Unable to retrieve ticket details."
+        }), 500
+
+@app.route(
+    "/admin/api/tickets/<int:ticket_id>/messages",
+    methods=["POST"]
+)
+@login_required
+def send_admin_ticket_message(ticket_id):
+
+    # Only admins can send replies
+    if session.get("role") != "admin":
+        return jsonify({
+            "status": "error",
+            "response": "Admin privileges required."
+        }), 403
+
+    data = request.get_json(silent=True) or {}
+    message = data.get("message", "").strip()
+
+    if not message:
+        return jsonify({
+            "status": "error",
+            "response": "Message cannot be empty."
+        }), 400
+
+    try:
+        message_id = add_ticket_message(
+            ticket_id=ticket_id,
+            sender_id=session["user_id"],
+            sender_role="admin",
+            message=message
+        )
+
+        return jsonify({
+            "status": "success",
+            "response": "Reply sent successfully.",
+            "message_id": message_id
+        }), 201
+
+    except ValueError as error:
+        return jsonify({
+            "status": "error",
+            "response": str(error)
+        }), 404
+
+    except Exception:
+        app.logger.exception("Failed to send admin ticket reply")
+
+        return jsonify({
+            "status": "error",
+            "response": "Unable to send reply."
         }), 500
 
 
