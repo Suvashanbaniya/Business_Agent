@@ -29,7 +29,8 @@ def get_public_products():
                 category,
                 price,
                 stock_quantity,
-                warranty_months
+                warranty_months,
+                description
             FROM products
         """).fetchall()
 
@@ -58,6 +59,7 @@ def product_chat_response(user_message):
             product_context += (
                 f"Product: {product['product_name']}\n"
                 f"Category: {product['category']}\n"
+                f"Description: {product['description']}\n"
                 f"Price: {product['price']}\n"
                 f"Stock quantity: {product['stock_quantity']}\n"
                 f"Warranty: {product['warranty_months']} months\n\n"

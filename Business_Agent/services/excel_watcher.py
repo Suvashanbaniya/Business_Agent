@@ -13,38 +13,56 @@ EXCEL_FOLDER = Path(
 
 # Excel workbook name
 EXCEL_FILE = "Business_Data.xlsx"
-
-
 class ExcelChangeHandler(FileSystemEventHandler):
+
+    def process_excel_change(self, file_path):
+
+        if Path(file_path).name != EXCEL_FILE:
+            return
+
+        print("\nExcel workbook changed!")
+        print("File:", file_path)
+
+        for attempt in range(5):
+
+            try:
+                time.sleep(2)
+
+                sync_excel_product()
+
+                break
+
+            except PermissionError:
+                print(
+                    f"Excel file is locked. Retrying... "
+                    f"({attempt + 1}/5)"
+                )
+
+                time.sleep(3)
+
+            except Exception as error:
+                print("Excel synchronization failed:", error)
+                break
+
+        else:
+            print("Could not synchronize Excel after 5 attempts.")
 
     def on_modified(self, event):
 
-        # Ignore changes to folders
-        if event.is_directory:
-            return
+        if not event.is_directory:
+            self.process_excel_change(event.src_path)
 
-        # Check whether our Excel workbook changed
-        if Path(event.src_path).name == EXCEL_FILE:
+    def on_created(self, event):
 
-            print("\nExcel workbook changed!")
-            print("File:", event.src_path)
+        if not event.is_directory:
+            self.process_excel_change(event.src_path)
 
-            for attempt in range(5):
-                try:
-                    time.sleep(2)
-                    sync_excel_product()
-                    break
+    def on_moved(self, event):
 
-                except PermissionError:
-                    print(f"Excel file is locked. Retrying... ({attempt + 1}/5)")
-                    time.sleep(3)
-
-                except Exception as error:
-                    print("Excel synchronization failed:", error)
-                    break
-            else:
-                print("Could not synchronize Excel after 5 attempts.")
-
+        if not event.is_directory:
+            self.process_excel_change(event.dest_path)
+            
+            
 def start_excel_watcher():
 
     event_handler = ExcelChangeHandler()

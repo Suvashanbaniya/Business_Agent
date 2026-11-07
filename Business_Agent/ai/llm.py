@@ -370,16 +370,61 @@ def  build_knowledge_base():
     return knowledge_base
 
 
+# -------- Build and refresh the knowledge base
 
-# Building  embeddings  
-def build_embeddings(knowledge_base):
-    for category , items  in knowledge_base.items():
+knowledge_base = {}
+
+
+def refresh_knowledge_base():
+    """
+    Refresh the knowledge base using the latest database records.
+
+    Reuse embeddings for unchanged records.
+    Generate embeddings only for new or modified records.
+    """
+
+    global knowledge_base
+
+    # Keep a reference to the previous knowledge base.
+    old_knowledge_base = knowledge_base
+
+    # Retrieve the latest records from SQLite.
+    new_knowledge_base = build_knowledge_base()
+
+    # Create a lookup for previously generated embeddings.
+    old_embeddings = {}
+
+    for category, items in old_knowledge_base.items():
         for item in items:
-            item["embedding"] = get_embedding(item["text"])
+
+            key = (category, item["id"], item["text"])
+
+            old_embeddings[key] = item.get("embedding")
+
+    # Process the latest records.
+    for category, items in new_knowledge_base.items():
+        for item in items:
+
+            key = (category, item["id"], item["text"])
+
+            # Reuse the embedding if the record hasn't changed.
+            if key in old_embeddings:
+                item["embedding"] = old_embeddings[key]
+
+            else:
+                # Generate a new embedding for new or modified data.
+                item["embedding"] = get_embedding(item["text"])
+
+    # Replace the old knowledge base.
+    knowledge_base = new_knowledge_base
+
+    print("Knowledge base refreshed successfully!")
+
     return knowledge_base
 
-knowledge_base = build_knowledge_base()
-knowledge_base = build_embeddings(knowledge_base)
+
+# Build the initial knowledge base when the module starts.
+refresh_knowledge_base()
 
 
 
