@@ -701,8 +701,31 @@ def chat():
             }), 500
 
     # Handle other messages with the normal AI chatbot.
+    # -------- Get the authenticated customer's email
+
+    customer_email = None
+
+    if customer_id is not None:
+        with sqlite3.connect(CUSTOMER_DB_PATH) as connection:
+            customer = connection.execute(
+                """
+                SELECT email
+                FROM customers
+                WHERE customer_id = ?
+                """,
+                (customer_id,)
+            ).fetchone()
+
+        if customer:
+            customer_email = customer[0]
+
+    # -------- Temporary debugging
+    print("Logged-in customer ID:", customer_id)
+    print("Customer email found:", customer_email)
+
+    # -------- Handle other messages with the normal AI chatbot
     try:
-        reply = ask_llm(user_message)
+        reply = ask_llm(user_message, customer_email)
 
         print("AI:", reply)
 

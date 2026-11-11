@@ -1,8 +1,10 @@
 import sqlite3
+from pathlib import Path
 
+# Locate the actual customer database.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-DATABASE = "customer.db"
-
+DATABASE = BASE_DIR / "database" / "customer.db"
 
 def get_customer_by_email(email):
 

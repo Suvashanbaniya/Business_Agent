@@ -426,7 +426,26 @@ def refresh_knowledge_base():
 # Build the initial knowledge base when the module starts.
 refresh_knowledge_base()
 
+# -------- Track database changes
 
+cursor.execute("PRAGMA data_version")
+_last_data_version = cursor.fetchone()[0]
+
+
+def refresh_if_database_changed():
+    global _last_data_version
+
+    # Check whether another database connection has committed changes.
+    cursor.execute("PRAGMA data_version")
+    current_version = cursor.fetchone()[0]
+
+    if current_version != _last_data_version:
+
+        print("Database changes detected!")
+
+        refresh_knowledge_base()
+
+        _last_data_version = current_version
 
 
 print("\nEmbedding Test")
@@ -756,7 +775,8 @@ Standalone question:
         return user_input
      
 def ask_llm(user_input, customer_email=None):
-
+        # Check whether the database has changed.
+    refresh_if_database_changed()
     # Get customer-specific information if an email is provided
     customer_context = None
     
