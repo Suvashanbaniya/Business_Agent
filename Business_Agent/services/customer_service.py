@@ -47,23 +47,25 @@ def get_customer_by_orders(customer_id):
     
     return orders 
 
-
 def get_customer_by_tickets(customer_id):
-    
+
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
-    
-    cursor.execute(
-    """
-    SELECT * 
-    FROM support_tickets
-    WHERE customer_id = ?
 
-    """,
-    (customer_id,)
+    cursor.execute(
+        """
+        SELECT *
+        FROM support_tickets
+        WHERE customer_id = ?
+        ORDER BY created_at DESC
+        """,
+        (customer_id,)
     )
+
     tickets = cursor.fetchall()
-    conn.close ()
+
+    conn.close()
+
     return tickets
 
 

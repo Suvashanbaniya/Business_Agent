@@ -5,7 +5,8 @@ import sqlite3
 
 from services.customer_service import (
     # Keep the existing imported function names here
-
+    get_customer_context,
+    
     get_customer_by_email,
     get_customer_by_orders,
     get_customer_by_tickets
@@ -514,33 +515,42 @@ def get_customer_context(email):
 
 
 def route_question(question):
-    
     question = question.lower()
-    
-    
+
     if any(word in question for word in [
-        "product","price", "cost","warranty","stock","available","smartphone"
+        "ticket",
+        "tickets",
+        "support ticket",
+        "support tickets",
+        "complaint",
+        "complaints",
+        "support issue",
+        "my issue"
+    ]):
+        return "tickets"
+
+    if any(word in question for word in [
+        "product", "price", "cost", "warranty", "stock", "available", "smartphone"
     ]):
         return "products"
-    
-    elif any(word in question for word in[
-        "my email","my phone","my name",
-        "customer details","join date"
-    ]):
-        
-        return "customers"
-    
+
     elif any(word in question for word in [
-        "quantity","item in my order", "how many items"
+        "my email", "my phone", "my name",
+        "customer details", "join date"
+    ]):
+        return "customers"
+
+    elif any(word in question for word in [
+        "quantity", "item in my order", "how many items"
     ]):
         return "order_items"
-    
-    elif any (word in question for word in [
-        "order","delivery", "delivered","shipping", "tracking"
+
+    elif any(word in question for word in [
+        "order", "delivery", "delivered", "shipping", "tracking"
     ]):
-       return "orders"
-    
-    else :
+        return "orders"
+
+    else:
         return "all"
 
 
@@ -773,7 +783,43 @@ Standalone question:
         print("Question rewritting error :",e)
         
         return user_input
-     
+    
+    
+    
+# -------- Format customer support tickets
+def format_customer_tickets(customer_id):
+
+    # Retrieve all tickets belonging to this customer.
+    tickets = get_customer_by_tickets(customer_id)
+
+    # Check whether the customer has any tickets.
+    if not tickets:
+        return "You currently have no support tickets."
+
+    response = "Here are your support tickets:\n\n"
+
+    # Process each ticket individually.
+    for ticket in tickets:
+
+        ticket_id = ticket[0]
+        issue_title = ticket[2]
+        issue_description = ticket[3]
+        status = ticket[4]
+        created_at = ticket[5]
+
+        response += (
+            f"Ticket ID: {ticket_id}\n"
+            f"Issue: {issue_title}\n"
+            f"Description: {issue_description}\n"
+            f"Status: {status}\n"
+            f"Created: {created_at}\n"
+            "-------------------------\n"
+        )
+
+    return response
+
+
+ 
 def ask_llm(user_input, customer_email=None):
         # Check whether the database has changed.
     refresh_if_database_changed()
@@ -832,6 +878,27 @@ def ask_llm(user_input, customer_email=None):
             "Please sign in to your account before I can help "
             "with your orders or support tickets."
         )
+
+    # Handle support-ticket listing directly.
+    # -------- Handle support-ticket listing directly
+    if category == "tickets":
+
+        customer_id = customer_context["customer"][0]
+
+        answer = format_customer_tickets(customer_id)
+
+        # Save both sides of the conversation.
+        messages.append({
+            "role": "user",
+            "content": user_input
+        })
+
+        messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        return answer
 
     metadata_filters = None
 
@@ -896,10 +963,7 @@ Support Tickets:
             "business records. Could you provide more details?"
         )
 
-        messages.append({
-            "role": "user",
-            "content": user_input
-        })
+        
         messages.append({
     "role": "assistant",
     "content": answer
@@ -1013,3 +1077,9 @@ customer_orders = filter_metadata(
 print("Orders for customer ID 1:")
 for order in customer_orders:
     print(order["text"])
+    
+    
+    
+print("Ticket test:", route_question("Show me my support tickets"))
+print("Order test:", route_question("Track my order"))
+print("Product test:", route_question("What is the price of my laptop?"))
