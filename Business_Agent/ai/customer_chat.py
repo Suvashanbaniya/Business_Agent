@@ -3,6 +3,9 @@ import sqlite3
 import requests
 from pathlib import Path
 
+# -------- Customer-specific product conversation memory
+# -------- Import shared customer conversation memory
+from .conversation_memory import conversation_histories
 # -------- Locate the existing product database
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = BASE_DIR / "database" / "customer.db"
@@ -37,13 +40,23 @@ def get_public_products():
     return [dict(row) for row in rows]
 
 
-def product_chat_response(user_message):
+def product_chat_response(user_message,customer_id):
     """
     Answer customer questions using product information only.
     """
 
+    # -------- Get the customer's conversation history
     if not isinstance(user_message, str) or not user_message.strip():
         return "Please enter a product question."
+    conversation_history = conversation_histories.setdefault(
+        customer_id, []
+    )
+
+    # -------- Save the customer's message
+    conversation_history.append({
+        "role": "user",
+        "content": user_message.strip()
+    })
 
     try:
         # -------- Load public product information
@@ -64,7 +77,13 @@ def product_chat_response(user_message):
                 f"Stock quantity: {product['stock_quantity']}\n"
                 f"Warranty: {product['warranty_months']} months\n\n"
             )
+        # -------- Prepare recent conversation history
+        history_text = ""
 
+        for message in conversation_history[-10:]:
+            history_text += (
+                f"{message['role']}: {message['content']}\n"
+            )
         # -------- Restrict the assistant to product information
         prompt = f"""
 You are a friendly product information assistant.
@@ -88,7 +107,10 @@ Rules:
 Available product data:
 {product_context}
 
-Customer question:
+Recent conversation history :
+{history_text}
+
+ Latest customer question:
 {user_message.strip()}
 
 Product assistant answer:
@@ -106,13 +128,18 @@ Product assistant answer:
             timeout=120
         )
 
-        response.raise_for_status()
-
         answer = response.json().get("response", "").strip()
 
         if not answer:
             return "Sorry, I couldn't generate an answer. Please try again."
 
+        # -------- Save assistant response
+        conversation_history.append({
+            "role": "assistant",
+            "content": answer
+        })
+        # -------- Keep only the latest 10 messages
+        conversation_history[:] = conversation_history[-10:]
         return answer
 
     except requests.RequestException:

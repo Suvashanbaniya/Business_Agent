@@ -35,9 +35,8 @@ print("Order item count:", cursor.fetchone()[0])
 cursor.execute("PRAGMA table_info(orders)")
 print("Orders columns:", cursor.fetchall())
 
-messages = []
-
-
+# -------- Import shared customer conversation memory
+from .conversation_memory import conversation_histories
 temperature = 0.3
 
 def business_info():
@@ -821,10 +820,27 @@ def format_customer_tickets(customer_id):
 
  
 def ask_llm(user_input, customer_email=None):
-        # Check whether the database has changed.
     refresh_if_database_changed()
-    # Get customer-specific information if an email is provided
+
+    # Get customer-specific information
     customer_context = None
+
+    if customer_email:
+        customer_context = get_customer_context(customer_email)
+
+    # Get the logged-in customer's ID
+    customer_id = None
+
+    if customer_context:
+        customer_id = customer_context["customer"][0]
+
+    # Get or create the customer's conversation history
+    if customer_id is not None:
+        conversation_history = conversation_histories.setdefault(
+            customer_id, []
+        )
+    else:
+        conversation_history = []
     
     greetings = {
         "hi",
@@ -842,11 +858,11 @@ def ask_llm(user_input, customer_email=None):
             "How can I help you today?"
         )
         
-        messages.append({
+        conversation_history.append({
             "role":"user",
             "content":user_input
         })
-        messages.append({
+        conversation_history.append({
             "role":"assistant",
             "content":answer
         })
@@ -857,11 +873,14 @@ def ask_llm(user_input, customer_email=None):
 
     #== conversation Memory  + reterived
     
-    
     standalone_question = rewrite_follow_up_question(
-        user_input,
-        messages
-    )
+    user_input,
+    conversation_history
+)
+    
+    print("Customer ID:", customer_id)
+    print("Conversation history:", conversation_history)
+    print("Standalone question:", standalone_question)
     
     print("Orginal question:",user_input)
     print("Standalone question:",standalone_question)
@@ -879,7 +898,7 @@ def ask_llm(user_input, customer_email=None):
             "with your orders or support tickets."
         )
 
-    # Handle support-ticket listing directly.
+    
     # -------- Handle support-ticket listing directly
     if category == "tickets":
 
@@ -888,12 +907,12 @@ def ask_llm(user_input, customer_email=None):
         answer = format_customer_tickets(customer_id)
 
         # Save both sides of the conversation.
-        messages.append({
+        conversation_history.append({
             "role": "user",
             "content": user_input
         })
 
-        messages.append({
+        conversation_history.append({
             "role": "assistant",
             "content": answer
         })
@@ -916,14 +935,14 @@ def ask_llm(user_input, customer_email=None):
     print("Retrieved context:\n", context)
     
     
-    messages.append({
+    conversation_history.append({
         "role":"user",
         "content":user_input,
         
     })
     
     
-    recent_messages = messages[-10:]
+    recent_messages = conversation_history[-10:]
 
     # Build conversation history
     history_text = ""
@@ -964,7 +983,7 @@ Support Tickets:
         )
 
         
-        messages.append({
+        conversation_history.append({
     "role": "assistant",
     "content": answer
         })
@@ -973,14 +992,38 @@ Support Tickets:
 
     # Prepare the prompt for Llama 3
     prompt = f"""
-You are a Business Assistant AI.
+You are a helpful Business Assistant AI.
 
-Answer using the available business data.
-If the answer is not available, say:
-"I don't know."
+Your job is to assist customers using business records
+and their conversation history.
 
-Do not promise future updates, notifications, refunds, or other actions
-unless the system has actually performed or scheduled that action.
+IMPORTANT RULES:
+
+1. Understand the user's latest question using the conversation history.
+
+2. If the user asks a follow-up question, identify the relevant
+   product, order, or topic from the previous conversation.
+
+3. Answer the latest question directly.
+   Do not repeat your previous answer unnecessarily.
+
+4. Use the Business Data and Customer-Specific Data
+   as the source of truth for business information.
+
+5. Use conversation history to understand personal preferences
+   and information the customer previously mentioned.
+
+6. Never invent customer details, product information,
+   order statuses, prices, or other business records.
+
+7. If the requested information is unavailable,
+   clearly say: "I don't know."
+
+8. Keep your responses natural, clear, and concise.
+
+9. Do not promise future updates, notifications, refunds,
+   or other actions unless the system has actually performed
+   or scheduled that action.
 
 Business Data:
 {context}
@@ -991,10 +1034,10 @@ Customer-Specific Data:
 Conversation History:
 {history_text}
 
-User Question:
+Latest User Question:
 {user_input}
 
-Answer naturally.
+Answer:
 """
 
     # Send the prompt to Ollama
@@ -1020,7 +1063,7 @@ Answer naturally.
         )
 
         # Save the AI response
-        messages.append({
+        conversation_history.append({
             "role": "assistant",
             "content": answer
         })

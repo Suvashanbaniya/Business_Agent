@@ -684,7 +684,7 @@ def chat():
     # Route product enquiries to the product chatbot.
     if intent == "product_inquiry":
         try:
-            reply = product_chat_response(user_message)
+            reply = product_chat_response(user_message, customer_id)
 
             return jsonify({
                 "response": reply,
