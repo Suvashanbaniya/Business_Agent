@@ -3,6 +3,17 @@ import os
 import sqlite3
 from pathlib import Path
 from functools import wraps
+import secrets
+from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+import smtplib
+from email.message import EmailMessage
+# -------- Load environment variables
+BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
+import hashlib
+from datetime import datetime, timedelta, timezone
 from flask import (
     Flask,
     request,
@@ -24,6 +35,46 @@ from services.ticket_message_service import (
 )
 from ai.customer_chat import product_chat_response
 
+# -------- Load environment variables
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+
+
+# -------- Send OTP Email
+def send_otp_email(receiver_email, otp):
+
+    email = os.getenv("EMAIL_ADDRESS")
+    password = os.getenv("EMAIL_PASSWORD")
+
+    message = EmailMessage()
+
+    message["Subject"] = "Business Agent - Password Reset OTP"
+    message["From"] = email
+    message["To"] = receiver_email
+
+    message.set_content(f"""
+Hello,
+
+Your Business Agent password reset OTP is:
+
+{otp}
+
+This OTP expires in 5 minutes.
+
+If you did not request this, ignore this email.
+
+Business Agent Team
+""")
+
+    # Connect to Gmail SMTP.
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(email, password)
+        server.send_message(message)
+
+    return True
+
 app = Flask(__name__)
 CORS(app)
 
@@ -42,6 +93,52 @@ AUTH_DB_PATH = (
     / "database"
     / "auth.db"
 )
+
+# -------- Create password reset table
+def initialize_password_reset_table():
+
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                token_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_at TEXT NOT NULL,
+                used INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
+
+        connection.commit()
+  
+# -------- Initialize Password Reset OTP Table
+def initialize_password_reset_otp_table():
+
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_otps (
+
+                otp_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                user_id INTEGER NOT NULL,
+
+                otp_hash TEXT NOT NULL,
+
+                expires_at TEXT NOT NULL,
+
+                used INTEGER NOT NULL DEFAULT 0,
+
+                attempts INTEGER NOT NULL DEFAULT 0,
+
+                created_at TEXT NOT NULL,
+
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            )
+        """)
+
+        connection.commit()      
 # Locate customer.db relative to app.py.
 CUSTOMER_DB_PATH = (
     Path(__file__).resolve().parent
@@ -855,11 +952,171 @@ def login():
     return redirect(url_for("home"))
 
 
+# -------- Forgot Password
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+
+    if request.method == "POST":
+
+        login_id = request.form.get("login_id", "").strip()
+
+        # Clear any previous password-reset session.
+        session.pop("password_reset_user_id", None)
+
+        with sqlite3.connect(AUTH_DB_PATH) as connection:
+            connection.row_factory = sqlite3.Row
+
+            user = connection.execute(
+                "SELECT user_id FROM users WHERE login_id = ?",
+                (login_id,)
+            ).fetchone()
+
+        if user:
+            try:
+                # Generate and store a new six-digit OTP.
+                otp = generate_password_reset_otp(user["user_id"])
+
+                # Send the OTP to the user's email.
+                send_otp_email(login_id, otp)
+
+                # Remember which user is completing password reset.
+                session["password_reset_user_id"] = user["user_id"]
+
+            except Exception as error:
+                print("OTP sending error:", error)
+
+        flash(
+            "If an account exists with that email, an OTP will be sent.",
+            "info"
+        )
+
+        return redirect(url_for("forgot_password"))
+
+    return render_template("forgot_password.html")
+
+
+# -------- Reset Password
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+
+    # Hash the token received from the reset link.
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+
+        reset_record = connection.execute(
+            """
+            SELECT token_id, user_id, expires_at
+            FROM password_reset_tokens
+            WHERE token_hash = ? AND used = 0
+            """,
+            (token_hash,)
+        ).fetchone()
+
+        # Reject invalid or already-used tokens.
+        if not reset_record:
+            flash("Invalid or already-used reset link.", "error")
+            return redirect(url_for("login"))
+
+        # Check whether the token has expired.
+        expires_at = datetime.fromisoformat(reset_record["expires_at"])
+
+        if datetime.now(timezone.utc) >= expires_at:
+            flash("This reset link has expired. Request a new one.", "error")
+            return redirect(url_for("forgot_password"))
+
+        if request.method == "POST":
+
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if len(new_password) < 8:
+                flash("Password must contain at least 8 characters.", "error")
+
+            elif new_password != confirm_password:
+                flash("Passwords do not match.", "error")
+
+            else:
+                password_hash = generate_password_hash(new_password)
+
+                connection.execute(
+                    """
+                    UPDATE users
+                    SET password_hash = ?
+                    WHERE user_id = ?
+                    """,
+                    (password_hash, reset_record["user_id"])
+                )
+
+                # Make the reset token unusable.
+                connection.execute(
+                    """
+                    UPDATE password_reset_tokens
+                    SET used = 1
+                    WHERE user_id = ?
+                    """,
+                    (reset_record["user_id"],)
+                )
+
+                connection.commit()
+
+                flash("Your password has been reset. Please log in.", "success")
+                return redirect(url_for("login"))
+
+    return render_template("reset_password.html")
 @app.route("/logout", methods=["POST"])
 def logout():
     # Remove the logged-in user's session data.
     session.clear()
     return redirect(url_for("login"))
 
+
+# -------- Generate and Store Password Reset OTP
+def generate_password_reset_otp(user_id):
+
+    # Generate a random six-digit OTP.
+    otp = f"{secrets.randbelow(1_000_000):06d}"
+
+    # Hash the OTP before storing it.
+    otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+
+    # Set OTP expiration to 5 minutes.
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+
+    with sqlite3.connect(AUTH_DB_PATH) as connection:
+
+        # Invalidate any previous unused OTPs for this user.
+        connection.execute("""
+            UPDATE password_reset_otps
+            SET used = 1
+            WHERE user_id = ? AND used = 0
+        """, (user_id,))
+
+        # Store the new OTP hash.
+        connection.execute("""
+            INSERT INTO password_reset_otps
+            (user_id, otp_hash, expires_at, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (
+            user_id,
+            otp_hash,
+            expires_at.isoformat(),
+            datetime.now(timezone.utc).isoformat()
+        ))
+
+        connection.commit()
+
+    # Return the original OTP so we can email it.
+    return otp
+ 
+initialize_password_reset_table()
+
+initialize_password_reset_otp_table()
+# -------- Temporary Gmail test
 if __name__ == "__main__":
+
+  
+
+    # Start Flask after the email test.
     app.run(debug=True)

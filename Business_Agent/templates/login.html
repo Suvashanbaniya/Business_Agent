@@ -99,9 +99,12 @@
                 <div class="form-group">
 
                     <div class="password-heading">
-                        <label for="password">Password</label>
-                        <a href="#">Forgot password?</a>
-                    </div>
+    <label for="password">Password</label>
+
+    <a href="{{ url_for('forgot_password') }}">
+        Forgot password?
+    </a>
+</div>
 
                     <div class="input-wrapper">
                         <span class="field-icon">♙</span>

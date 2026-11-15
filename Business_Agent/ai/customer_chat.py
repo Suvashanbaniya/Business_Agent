@@ -3,8 +3,7 @@ import sqlite3
 import requests
 from pathlib import Path
 
-# -------- Customer-specific product conversation memory
-# -------- Import shared customer conversation memory
+
 from .conversation_memory import conversation_histories
 # -------- Locate the existing product database
 BASE_DIR = Path(__file__).resolve().parent.parent
