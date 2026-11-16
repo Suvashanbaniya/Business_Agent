@@ -4,6 +4,7 @@ import sqlite3
 from pathlib import Path
 from functools import wraps
 import secrets
+import hmac
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import smtplib
@@ -971,28 +972,193 @@ def forgot_password():
                 (login_id,)
             ).fetchone()
 
-        if user:
-            try:
-                # Generate and store a new six-digit OTP.
-                otp = generate_password_reset_otp(user["user_id"])
+            if user:
+                try:
+                    # Generate and store a new six-digit OTP.
+                    otp = generate_password_reset_otp(user["user_id"])
 
-                # Send the OTP to the user's email.
-                send_otp_email(login_id, otp)
+                    # Send the OTP to the user's email.
+                    send_otp_email(login_id, otp)
 
-                # Remember which user is completing password reset.
-                session["password_reset_user_id"] = user["user_id"]
+                    # Remember which user is completing password reset.
+                    session["password_reset_user_id"] = user["user_id"]
 
-            except Exception as error:
-                print("OTP sending error:", error)
+                    print("RESET USER ID:", session.get("password_reset_user_id"))
 
-        flash(
-            "If an account exists with that email, an OTP will be sent.",
-            "info"
-        )
+                except Exception as error:
+                    print("OTP sending error:", error)
 
+                    flash("Unable to send OTP. Please try again.", "danger")
+                    return redirect(url_for("forgot_password"))
+
+            else:
+                print("User not found:", login_id)
+
+                flash(
+                    "This email is not registered. Please create an account or check your email.",
+                    "danger"
+                )
+                return redirect(url_for("forgot_password"))
+
+            flash("OTP sent successfully. Check your email.", "success")
+
+            return redirect(url_for("verify_password_reset_otp"))
+
+
+# -------- Verify Password Reset OTP
+@app.route("/verify-otp", methods=["GET", "POST"])
+def verify_password_reset_otp():
+
+    user_id = session.get("password_reset_user_id")
+    print("VERIFY SESSION:", dict(session))
+    print("VERIFY USER ID:", user_id)
+    if not user_id:
+        flash("Please request a password reset first.", "warning")
+        return redirect(url_for("verify_password_reset_otp"))
+
+    if request.method == "POST":
+
+        entered_otp = request.form.get("otp", "").strip()
+
+        # OTP must contain exactly six digits.
+        if not entered_otp.isdigit() or len(entered_otp) != 6:
+            flash("Enter a valid six-digit OTP.", "danger")
+            return redirect(url_for("verify_password_reset_otp"))
+
+        with sqlite3.connect(AUTH_DB_PATH) as connection:
+            connection.row_factory = sqlite3.Row
+
+            otp_record = connection.execute(
+                """
+                SELECT *
+                FROM password_reset_otps
+                WHERE user_id = ? AND used = 0
+                ORDER BY otp_id DESC
+                LIMIT 1
+                """,
+                (user_id,)
+            ).fetchone()
+
+            if not otp_record:
+                flash("Invalid or expired OTP. Request a new one.", "danger")
+                return redirect(url_for("forgot_password"))
+
+            # Check whether the OTP has expired.
+            expires_at = datetime.fromisoformat(otp_record["expires_at"])
+
+            if datetime.now(timezone.utc) >= expires_at:
+                connection.execute(
+                    "UPDATE password_reset_otps SET used = 1 WHERE otp_id = ?",
+                    (otp_record["otp_id"],)
+                )
+                connection.commit()
+
+                flash("Your OTP has expired. Request a new one.", "danger")
+                return redirect(url_for("forgot_password"))
+
+            # Check the maximum number of attempts.
+            if otp_record["attempts"] >= 5:
+                connection.execute(
+                    "UPDATE password_reset_otps SET used = 1 WHERE otp_id = ?",
+                    (otp_record["otp_id"],)
+                )
+                connection.commit()
+
+                flash("Too many attempts. Request a new OTP.", "danger")
+                return redirect(url_for("forgot_password"))
+
+            # Hash the entered OTP and compare it with the stored hash.
+            entered_hash = hashlib.sha256(
+                entered_otp.encode()
+            ).hexdigest()
+
+            if not hmac.compare_digest(
+                entered_hash,
+                otp_record["otp_hash"]
+            ):
+                connection.execute(
+                    """
+                    UPDATE password_reset_otps
+                    SET attempts = attempts + 1
+                    WHERE otp_id = ?
+                    """,
+                    (otp_record["otp_id"],)
+                )
+                connection.commit()
+
+                flash("Incorrect OTP. Please try again.", "danger")
+                return redirect(url_for("verify_password_reset_otp"))
+
+            # OTP is correct. Mark it as used.
+            connection.execute(
+                "UPDATE password_reset_otps SET used = 1 WHERE otp_id = ?",
+                (otp_record["otp_id"],)
+            )
+            connection.commit()
+
+        # Allow this user to proceed to the password reset page.
+        session["password_reset_verified"] = True
+
+        flash("OTP verified successfully.", "success")
+        
+        return redirect(url_for("reset_password_form"))
+
+    return render_template("verify_otp.html")
+    
+# -------- Reset Password After OTP Verification
+@app.route("/reset-password-new", methods=["GET", "POST"])
+def reset_password_form():
+
+    # Only users who have successfully verified their OTP can continue.
+    if not session.get("password_reset_verified"):
+        flash("Please verify your OTP first.", "warning")
         return redirect(url_for("forgot_password"))
 
-    return render_template("forgot_password.html")
+    user_id = session.get("password_reset_user_id")
+
+    if not user_id:
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        # Check whether both passwords match.
+        if new_password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(url_for("reset_password_form"))
+
+        # Basic password length validation.
+        if len(new_password) < 8:
+            flash("Password must contain at least 8 characters.", "danger")
+            return redirect(url_for("reset_password_form"))
+
+        # Hash the new password before saving it.
+        password_hash = generate_password_hash(new_password)
+
+        with sqlite3.connect(AUTH_DB_PATH) as connection:
+
+            connection.execute(
+                """
+                UPDATE users
+                SET password_hash = ?
+                WHERE user_id = ?
+                """,
+                (password_hash, user_id)
+            )
+
+            connection.commit()
+
+        # Clear password-reset session data.
+        session.pop("password_reset_user_id", None)
+        session.pop("password_reset_verified", None)
+
+        flash("Your password has been reset successfully. Please log in.", "success")
+
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html")
 
 
 # -------- Reset Password

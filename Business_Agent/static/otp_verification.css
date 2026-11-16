@@ -1,0 +1,99 @@
+
+/* -------- General page styling */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f7fa;
+    min-height: 100vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* -------- OTP container */
+.login-container {
+    width: 90%;
+    max-width: 400px;
+    background-color: #ffffff;
+    padding: 35px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* -------- Heading */
+.login-container h2 {
+    color: #2445b3;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+/* -------- Description */
+.login-container p {
+    color: #666666;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 22px;
+    line-height: 1.5;
+}
+
+/* -------- OTP input */
+.login-container input {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 6px;
+    outline: none;
+}
+
+.login-container input:focus {
+    border-color: #2445b3;
+}
+
+/* -------- Verify button */
+.login-container button {
+    width: 100%;
+    padding: 12px;
+    background-color: #2445b3;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.login-container button:hover {
+    background-color: #19358f;
+}
+
+/* -------- Flash messages */
+.flash-message {
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px !important;
+    margin-bottom: 15px !important;
+}
+
+.flash-message.success {
+    background-color: #e4f7e9;
+    color: #187a35 !important;
+}
+
+.flash-message.danger {
+    background-color: #ffe5e5;
+    color: #b42318 !important;
+}
+
+.flash-message.warning {
+    background-color: #fff3cd;
+    color: #856404 !important;
+}
