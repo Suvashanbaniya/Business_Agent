@@ -956,54 +956,72 @@ def login():
 # -------- Forgot Password
 @app.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
+    print("FORGOT PASSWORD FUNCTION CALLED")
+    print("REQUEST METHOD:", request.method)
 
     if request.method == "POST":
-
+       
         login_id = request.form.get("login_id", "").strip()
 
         # Clear any previous password-reset session.
         session.pop("password_reset_user_id", None)
+        session.pop("password_reset_verified", None)
 
         with sqlite3.connect(AUTH_DB_PATH) as connection:
             connection.row_factory = sqlite3.Row
 
+            # Find the user using their registered email.
             user = connection.execute(
                 "SELECT user_id FROM users WHERE login_id = ?",
                 (login_id,)
             ).fetchone()
 
-            if user:
-                try:
-                    # Generate and store a new six-digit OTP.
-                    otp = generate_password_reset_otp(user["user_id"])
+        # Check whether the user exists.
+        if user:
 
-                    # Send the OTP to the user's email.
-                    send_otp_email(login_id, otp)
+            try:
+                # Generate and store a new six-digit OTP.
+                otp = generate_password_reset_otp(user["user_id"])
 
-                    # Remember which user is completing password reset.
-                    session["password_reset_user_id"] = user["user_id"]
+                # Send the OTP to the user's email.
+                send_otp_email(login_id, otp)
 
-                    print("RESET USER ID:", session.get("password_reset_user_id"))
+                # Remember which user is completing password reset.
+                session["password_reset_user_id"] = user["user_id"]
 
-                except Exception as error:
-                    print("OTP sending error:", error)
+                print(
+                    "RESET USER ID:",
+                    session.get("password_reset_user_id")
+                )
 
-                    flash("Unable to send OTP. Please try again.", "danger")
-                    return redirect(url_for("forgot_password"))
-
-            else:
-                print("User not found:", login_id)
+            except Exception as error:
+                print("OTP sending error:", error)
 
                 flash(
-                    "This email is not registered. Please create an account or check your email.",
+                    "Unable to send OTP. Please try again.",
                     "danger"
                 )
                 return redirect(url_for("forgot_password"))
 
-            flash("OTP sent successfully. Check your email.", "success")
+        else:
+            print("User not found:", login_id)
 
-            return redirect(url_for("verify_password_reset_otp"))
+            flash(
+                "This email is not registered. Please create an account or check your email.",
+                "danger"
+            )
+            return redirect(url_for("forgot_password"))
 
+        # OTP sent successfully.
+        flash(
+            "OTP sent successfully. Check your email.",
+            "success"
+        )
+
+        return redirect(url_for("verify_password_reset_otp"))
+
+    # Display the forgot password page for GET requests.
+    return render_template("forgot_password.html")
 
 # -------- Verify Password Reset OTP
 @app.route("/verify-otp", methods=["GET", "POST"])
