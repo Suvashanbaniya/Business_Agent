@@ -181,7 +181,11 @@ def product_chat():
                 }), 401
 
             customer_id = session.get("customer_id")
-
+            if not customer_id:
+                return jsonify({
+                    "response": "Customer account information not found. Please log in again.",
+                    "status": "error"
+                }), 401
             # Retrieve tickets belonging to this customer only.
             tickets = get_customer_tickets(customer_id)
 
@@ -672,7 +676,12 @@ def chat():
     user_message = data.get("message", "")
    # Get the customer ID from the verified login session.
     customer_id = session.get("customer_id")
-
+    # Only customer accounts can use the customer chatbot.
+    if session.get("role") != "customer" or not customer_id:
+        return jsonify({
+            "response": "Please sign in with a customer account.",
+            "status": "error"
+        }), 403
     # Make sure the message is valid text.
     if not isinstance(user_message, str) or not user_message.strip():
         return jsonify({
