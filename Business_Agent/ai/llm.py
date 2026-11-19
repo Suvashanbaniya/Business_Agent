@@ -448,23 +448,6 @@ def refresh_if_database_changed():
         _last_data_version = current_version
 
 
-print("\nEmbedding Test")
-print("----------------")
-
-for category, items in knowledge_base.items():
-
-    print(f"\n{category}: {len(items)} items")
-
-    if len(items) > 0:
-
-        print("First item:")
-        print(items[0]["text"])
-
-        print("Embedding length:")
-        print(len(items[0]["embedding"]))
-
-print(knowledge_base.keys())
-
 
 # This part prepare the chunks 
 
@@ -1126,3 +1109,147 @@ for order in customer_orders:
 print("Ticket test:", route_question("Show me my support tickets"))
 print("Order test:", route_question("Track my order"))
 print("Product test:", route_question("What is the price of my laptop?"))
+
+
+
+# ==========================================
+# TESTING SECTION
+# ==========================================
+
+if __name__ == "__main__":
+
+    # ==========================================
+    # 1. EMBEDDING TEST
+    # ==========================================
+
+    print("\nEmbedding Test")
+    print("----------------")
+
+    for category, items in knowledge_base.items():
+
+        print(f"\n{category}: {len(items)} items")
+
+        if len(items) > 0:
+
+            print("First item:")
+            print(items[0]["text"])
+
+            print("Embedding length:")
+            print(len(items[0]["embedding"]))
+
+    print(knowledge_base.keys())
+
+
+    # ==========================================
+    # 2. TICKET METADATA TEST
+    # ==========================================
+
+    tickets = knowledge_base["tickets"]
+
+    customer_tickets = filter_metadata(
+        tickets,
+        {"customer_id": 1}
+    )
+
+    print("\nTickets for customer ID 1:")
+
+    for ticket in customer_tickets:
+        print(ticket["text"])
+
+    assert len(customer_tickets) > 0, (
+        "No tickets found for customer ID 1"
+    )
+
+    assert all(
+        ticket["customer_id"] == 1
+        for ticket in customer_tickets
+    )
+
+    print("Ticket metadata is working!")
+
+
+    # ==========================================
+    # 3. ORDER-ITEM METADATA TEST
+    # ==========================================
+
+    order_items = knowledge_base["order_items"]
+
+    customer_items = filter_metadata(
+        order_items,
+        {"customer_id": 1}
+    )
+
+    print("\nOrder items for customer ID 1:")
+
+    for item in customer_items:
+        print(item["text"])
+
+    assert len(customer_items) == 2, (
+        "Expected 2 order items for customer ID 1"
+    )
+
+    assert all(
+        item["customer_id"] == 1
+        for item in customer_items
+    )
+
+    print("Order-item metadata filtering is working!")
+
+
+    # ==========================================
+    # 4. ORDER METADATA TEST
+    # ==========================================
+
+    orders = knowledge_base["orders"]
+
+    for order in orders:
+        print(
+            "Order ID:", order.get("id"),
+            "| Customer ID:", order.get("customer_id")
+        )
+
+    print("---------------")
+
+    # Test filtering for customer ID 1
+    customer_orders = filter_metadata(
+        orders,
+        {"customer_id": 1}
+    )
+
+    print("\nOrders for customer ID 1:")
+
+    for order in customer_orders:
+        print(order["text"])
+
+    # Keep only orders with Delivered status
+    delivered_orders = filter_metadata(
+        orders,
+        {"status": "Delivered"}
+    )
+
+    print("\nDelivered orders:")
+
+    for order in delivered_orders:
+        print(order["text"])
+
+    print("-------------------------")
+
+
+    # ==========================================
+    # 5. ROUTER TEST
+    # ==========================================
+
+    print(
+        "Ticket test:",
+        route_question("Show me my support tickets")
+    )
+
+    print(
+        "Order test:",
+        route_question("Track my order")
+    )
+
+    print(
+        "Product test:",
+        route_question("What is the price of my laptop?")
+    )
