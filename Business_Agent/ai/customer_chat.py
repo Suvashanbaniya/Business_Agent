@@ -2,8 +2,8 @@
 import sqlite3
 import requests
 from pathlib import Path
-
-
+import secrets
+from flask import session
 from .conversation_memory import conversation_histories
 # -------- Locate the existing product database
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,12 +43,22 @@ def product_chat_response(user_message,customer_id):
     """
     Answer customer questions using product information only.
     """
-
-    # -------- Get the customer's conversation history
+    # -------- Validate the user's message
     if not isinstance(user_message, str) or not user_message.strip():
         return "Please enter a product question."
+
+    # -------- Give each visitor a separate conversation history
+    if customer_id is not None:
+        conversation_key = customer_id
+    else:
+        # Generate an anonymous visitor ID and keep it in their session.
+        if "public_chat_id" not in session:
+            session["public_chat_id"] = secrets.token_urlsafe(16)
+
+        conversation_key = f"public_{session['public_chat_id']}"
+
     conversation_history = conversation_histories.setdefault(
-        customer_id, []
+        conversation_key, []
     )
 
     # -------- Save the customer's message
@@ -128,7 +138,8 @@ Product assistant answer:
         )
 
         answer = response.json().get("response", "").strip()
-
+        response.raise_for_status()
+        
         if not answer:
             return "Sorry, I couldn't generate an answer. Please try again."
 

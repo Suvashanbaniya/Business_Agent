@@ -851,8 +851,6 @@ def ask_llm(user_input, customer_email=None):
         })
         return answer
 
-    if customer_email:
-        customer_context = get_customer_context(customer_email)
 
     #== conversation Memory  + reterived
     
@@ -872,7 +870,7 @@ def ask_llm(user_input, customer_email=None):
     print("Router selected:",category)
         
     #-------- Categories containing private customer records
-    private_categories = {"orders", "order_items", "tickets"}
+    private_categories = {"orders", "order_items", "tickets","customers"}
 
     #-------- Refuse private-data questions without verified identity
     if category in private_categories and not customer_context:

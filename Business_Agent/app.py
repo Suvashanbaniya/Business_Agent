@@ -423,11 +423,48 @@ def login_required(view_function):
         return view_function(*args, **kwargs)
 
     return wrapper
-# -------- Public customer homepage
+# -------- Public and authenticated customer homepage
 @app.route("/")
 def home():
-    return render_template("customer.html")
 
+    # Check whether the visitor is an authenticated customer.
+    if session.get("role") != "customer":
+        return render_template("customer.html")
+
+    customer_id = session.get("customer_id")
+
+    # Validate the customer ID.
+    if (
+        isinstance(customer_id, bool)
+        or not isinstance(customer_id, int)
+        or customer_id <= 0
+    ):
+        session.clear()
+        return render_template("customer.html")
+
+    # Retrieve the logged-in customer's name.
+    with sqlite3.connect(CUSTOMER_DB_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+
+        customer = connection.execute(
+            """
+            SELECT full_name
+            FROM customers
+            WHERE customer_id = ?
+            """,
+            (customer_id,)
+        ).fetchone()
+
+    if customer is None:
+        session.clear()
+        return render_template("customer.html")
+
+    return render_template(
+        "customer.html",
+        customer_name=customer["full_name"]
+    )
+    
+    
 # -------- Admin dashboard
 @app.route("/admin")
 @login_required
@@ -669,19 +706,25 @@ def update_admin_ticket(ticket_id):
         }), 500
 
 @app.route("/chat", methods=["POST"])
-@login_required
+
 def chat():
     data = request.get_json(silent=True) or {}
 
     user_message = data.get("message", "")
-   # Get the customer ID from the verified login session.
-    customer_id = session.get("customer_id")
-    # Only customer accounts can use the customer chatbot.
-    if session.get("role") != "customer" or not customer_id:
-        return jsonify({
-            "response": "Please sign in with a customer account.",
-            "status": "error"
-        }), 403
+    # Get the customer ID from the verified login session.
+    # Identify whether the visitor is an authenticated customer.
+    customer_id = None
+
+    # -------- Identify an authenticated customer
+    if session.get("role") == "customer":
+        possible_id = session.get("customer_id")
+
+        if (
+            isinstance(possible_id, int)
+            and not isinstance(possible_id, bool)
+            and possible_id > 0
+        ):
+            customer_id = possible_id
     # Make sure the message is valid text.
     if not isinstance(user_message, str) or not user_message.strip():
         return jsonify({
@@ -710,6 +753,14 @@ def chat():
 
     # Create a ticket only when the customer requests one.
     if wants_ticket:
+        if not customer_id:
+            return jsonify({
+                "response": (
+                    "Please log in to create a complaint or refund request. "
+                    "You can still ask me general product questions."
+                ),
+                "status": "login_required"
+            }), 401
         # A customer ID is required for ticket creation.
         if customer_id is None:
             return jsonify({

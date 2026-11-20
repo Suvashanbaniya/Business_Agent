@@ -24,19 +24,33 @@
                 <p>AI Customer Support Assistant</p>
             </div>
         </div>
+{% if session.get("customer_id") %}
 
-        <!-- The logged-in customer's name will be inserted here -->
-        <button class="top-profile" id="profile-menu" type="button">
-            <span class="profile-icon" id="header-avatar"></span>
+    <button class="top-profile" id="profile-menu" type="button">
+        <span class="profile-icon">
+            {{ customer_name[0] | upper if customer_name else "C" }}
+        </span>
 
-            <span>
-                <strong id="header-name"></strong>
-                <small>Customer</small>
-            </span>
+        <span>
+            <strong>{{ customer_name }}</strong>
+            <small>Customer</small>
+        </span>
 
-            <span>⌄</span>
-        </button>
+        <span>⌄</span>
+    </button>
 
+{% else %}
+
+    <a href="{{ url_for('login') }}" class="top-profile">
+        <span class="profile-icon">♙</span>
+
+        <span>
+            <strong>Login</strong>
+            <small>Customer Account</small>
+        </span>
+    </a>
+
+{% endif %}
     </header>
 
 
